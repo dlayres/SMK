@@ -151,8 +151,6 @@ bool loadControlPoints( char* filename ) {
 		controlPoints.push_back(controlPoint);
 	}
 
-
-
 	return true;
 }
 
@@ -174,15 +172,71 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 //
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, int resolution ) {
-	glBegin(GL_LINE_STRIP);
+	glBegin(GL_TRIANGLE_STRIP);
 	float t = 0.0;
 	while(t <= 1.0 + (1.0 / resolution)){
 		glm::vec3 nextPoint = evaluateBezierCurve(p0, p1, p2, p3, t);
 		glVertex3f(nextPoint.x, nextPoint.y, nextPoint.z);
+		glVertex3f(nextPoint.x + 10 * (1.0 / resolution), nextPoint.y, nextPoint.z);
+		glVertex3f(nextPoint.x, nextPoint.y + 10 * (1.0 / resolution), nextPoint.z);
+		glVertex3f(nextPoint.x + 10 * (1.0 / resolution), nextPoint.y + 10 * (1.0 / resolution), nextPoint.z);
 		t += (1.0/resolution);
 	}
 	glEnd();
 }
+
+// renderBezierSurface() //////////////////////////////////////////////////////////
+//
+// 
+//  
+//
+////////////////////////////////////////////////////////////////////////////////
+void renderBezierSurface(vector<glm::vec3> p, int u_res, int v_res) {
+	glColor3ub(0, 0, 255);
+	//glLineWidth(5);
+	//for (float v = 0.0; v <= 1.0; v += 1.0 / v_res) {
+		//glBegin(GL_LINE_STRIP);
+		/*glm::vec3 point = (float(pow((1 - v), 3)) * evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res)
+			+ 3 * v * float(pow((1 - v), 2)) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res)
+			+ 3 * float(pow(v, 2)) * (1 - v) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res)
+			+ float(pow(v, 3)) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res));*/
+
+	/*	glm::vec3 point = evaluateBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res),
+											evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res),
+											evaluateBezierCurve(p[8], p[9], p[10], p[11], u_res),
+											evaluateBezierCurve(p[12], p[13], p[14], p[15], u_res), v_res);
+
+		cout << point.x << " " << point.y << " " << point.z << endl;
+		glVertex3f(point.x, point.y, point.z);
+		glEnd();*/
+	//}
+
+		float u = 0.0;
+		float v = 0.0;
+
+		while (u <= 1.0) {
+			//while (v <= 1.0) {
+			//cout << u << endl;
+			renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
+				evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
+				evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
+				evaluateBezierCurve(p[12], p[13], p[14], p[15], u), u_res);
+						
+				/*glm::vec3 point = evaluateBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res),
+					evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res),
+					evaluateBezierCurve(p[8], p[9], p[10], p[11], u_res),
+					evaluateBezierCurve(p[12], p[13], p[14], p[15], u_res), v_res);
+					*/
+				//glVertex3f(point.x, point.y, point.z);
+				//v += (1.0 / v_res); */
+			//}
+			u += (1.0 / u_res);
+		}
+	
+
+}
+
+
 
 //*************************************************************************************
 //
@@ -305,8 +359,8 @@ static void mouse_button_callback( GLFWwindow *window, int button, int action, i
 ////////////////////////////////////////////////////////////////////////////////
 static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset){
 	camDistance -= yoffset;
-	if(camDistance < 5){
-		camDistance = 5;
+	if(camDistance < 1){
+		camDistance = 1;
 	}
 	else if(camDistance > 15){
 		camDistance = 15;
@@ -523,30 +577,17 @@ void renderScene(void)  {
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
 		glMultMatrixf(&transMtx[0][0]);
 		glLoadName(i);
-		CSCI441::drawSolidSphere(0.3, 20, 20);
+		CSCI441::drawSolidSphere(0.07, 20, 20);
 		glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	}
 	
 	glDisable(GL_LIGHTING);
 	
-	glLineWidth(3);
-	glColor3ub(0, 0, 255);
-	glBegin(GL_LINE_LOOP);
-	for(unsigned int i = 0; i < controlPoints.size(); i++){
-		glVertex3f(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z);
-	}
-	glEnd();
-	glLineWidth(1);
-	
 	glColor3ub(255, 255, 0);
-	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
-		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
-	}
+
+	renderBezierSurface(controlPoints, 200, 200);
 
 	glEnable(GL_LIGHTING);
-
-
-
 }
 
 //*************************************************************************************
@@ -609,34 +650,34 @@ GLFWwindow* setupGLFW() {
 void setupOpenGL() {
 	// tell OpenGL to perform depth testing with the Z-Buffer to perform hidden
 	//		surface removal.  We will discuss this more very soon.
-	glEnable( GL_DEPTH_TEST );
+	glEnable(GL_DEPTH_TEST);
 
 	//******************************************************************
 	// this is some code to enable a default light for the scene;
 	// feel free to play around with this, but we won't talk about
 	// lighting in OpenGL for another couple of weeks yet.
-	float lightCol[4] = { 1, 1, 1, 1};
+	float lightCol[4] = { 1, 1, 1, 1 };
 	float ambientCol[4] = { 0.0, 0.0, 0.0, 1.0 };
 	float lPosition[4] = { 10, 10, 10, 1 };
-	glLightfv( GL_LIGHT0, GL_POSITION,lPosition );
-	glLightfv( GL_LIGHT0, GL_DIFFUSE,lightCol );
-	glLightfv( GL_LIGHT0, GL_AMBIENT, ambientCol );
-	glEnable( GL_LIGHTING );
-	glEnable( GL_LIGHT0 );
+	glLightfv(GL_LIGHT0, GL_POSITION, lPosition);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightCol);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientCol);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
 
 	// tell OpenGL not to use the material system; just use whatever we
 	// pass with glColor*()
-	glEnable( GL_COLOR_MATERIAL );
-	glColorMaterial( GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE );
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	//******************************************************************
 
 	// tells OpenGL to blend colors across triangles. Once lighting is
 	// enabled, this means that objects will appear smoother - if your object
 	// is rounded or has a smooth surface, this is probably a good idea;
 	// if your object has a blocky surface, you probably want to disable this.
-	glShadeModel( GL_SMOOTH );
+	glShadeModel(GL_SMOOTH);
 
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );	// set the clear color to black
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
 }
 
 //
@@ -667,7 +708,7 @@ void setupScene() {
 	animateVals.push_back(-0.2);
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
-	
+
 	// give the camera a scenic starting point.
 	camPos.x = 5;
 	camPos.y = 5;
@@ -681,7 +722,7 @@ void setupScene() {
 	heroDir = glm::vec3(0, 0, 1);
 	recomputeOrientation();
 
-	srand( time(NULL) );	// seed our random number generator
+	srand(time(NULL));	// seed our random number generator
 	generateEnvironmentDL();
 }
 
@@ -694,8 +735,8 @@ void setupScene() {
 //
 //		Really you should know what this is by now.  We will make use of the parameters later
 //
-int main( int argc, char *argv[] ) {
-	if(argc != 2){
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
 		fprintf(stderr, "[ERROR]: Control point CSV not passed into command line\n");
 		exit(EXIT_FAILURE);
 	}
