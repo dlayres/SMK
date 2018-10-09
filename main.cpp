@@ -74,15 +74,14 @@ vector<float> animateVals;							// vector to store a few different animation cy
 
 vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
 
-
-bool cageOn = true;									// Determines if the cage/curve should be visible or not
-bool curveOn = true;
+int surfaceRes = 3;
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
 glm::mat4 scaleMtx;
 
-GLuint environmentDL;                       		// display list for the 'city'
+GLuint environmentDL;
+GLuint terrainDL;
 
 //*************************************************************************************
 //
@@ -171,18 +170,29 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 //  Breaks the curve into n segments as specified by the resolution.
 //
 ////////////////////////////////////////////////////////////////////////////////
-void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, int resolution ) {
-	glBegin(GL_TRIANGLE_STRIP);
+void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, glm::vec3 p5, glm::vec3 p6, glm::vec3 p7, int resolution ) {
 	float t = 0.0;
-	while(t <= 1.0 + (1.0 / resolution)){
-		glm::vec3 nextPoint = evaluateBezierCurve(p0, p1, p2, p3, t);
-		glVertex3f(nextPoint.x, nextPoint.y, nextPoint.z);
-		glVertex3f(nextPoint.x + 10 * (1.0 / resolution), nextPoint.y, nextPoint.z);
-		glVertex3f(nextPoint.x, nextPoint.y + 10 * (1.0 / resolution), nextPoint.z);
-		glVertex3f(nextPoint.x + 10 * (1.0 / resolution), nextPoint.y + 10 * (1.0 / resolution), nextPoint.z);
+	while(t <= 1.0 - (1.0 / resolution) + 0.0001){
+		glm::vec3 nextPoint1 = evaluateBezierCurve(p0, p1, p2, p3, t);
+		glm::vec3 nextPoint2 = evaluateBezierCurve(p0, p1, p2, p3, t + (1.0 / resolution));
+		glm::vec3 nextPoint3 = evaluateBezierCurve(p4, p5, p6, p7, t);
+		glm::vec3 nextPoint4 = evaluateBezierCurve(p4, p5, p6, p7, t + (1.0 / resolution));
+
+		glm::vec3 crossPoint1 = nextPoint2 - nextPoint1;
+		glm::vec3 crossPoint2 = nextPoint3 - nextPoint1;
+
+		glm::vec3 normalVec = glm::cross(crossPoint1, crossPoint2);
+		glNormal3f(normalVec.x, normalVec.y, normalVec.z);
+
+		glBegin(GL_TRIANGLE_STRIP);
+			glVertex3f(nextPoint1.x, nextPoint1.y, nextPoint1.z);
+			glVertex3f(nextPoint2.x, nextPoint2.y, nextPoint2.z);
+			glVertex3f(nextPoint3.x, nextPoint3.y, nextPoint3.z);
+			glVertex3f(nextPoint4.x, nextPoint4.y, nextPoint4.z);
+		glEnd();
+
 		t += (1.0/resolution);
 	}
-	glEnd();
 }
 
 // renderBezierSurface() //////////////////////////////////////////////////////////
@@ -191,49 +201,19 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 //  
 //
 ////////////////////////////////////////////////////////////////////////////////
-void renderBezierSurface(vector<glm::vec3> p, int u_res, int v_res) {
-	glColor3ub(0, 0, 255);
-	//glLineWidth(5);
-	//for (float v = 0.0; v <= 1.0; v += 1.0 / v_res) {
-		//glBegin(GL_LINE_STRIP);
-		/*glm::vec3 point = (float(pow((1 - v), 3)) * evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res)
-			+ 3 * v * float(pow((1 - v), 2)) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res)
-			+ 3 * float(pow(v, 2)) * (1 - v) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res)
-			+ float(pow(v, 3)) * evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res));*/
-
-	/*	glm::vec3 point = evaluateBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res),
-											evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res),
-											evaluateBezierCurve(p[8], p[9], p[10], p[11], u_res),
-											evaluateBezierCurve(p[12], p[13], p[14], p[15], u_res), v_res);
-
-		cout << point.x << " " << point.y << " " << point.z << endl;
-		glVertex3f(point.x, point.y, point.z);
-		glEnd();*/
-	//}
-
-		float u = 0.0;
-		float v = 0.0;
-
-		while (u <= 1.0) {
-			//while (v <= 1.0) {
-			//cout << u << endl;
-			renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
-				evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
-				evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
-				evaluateBezierCurve(p[12], p[13], p[14], p[15], u), u_res);
-						
-				/*glm::vec3 point = evaluateBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u_res),
-					evaluateBezierCurve(p[4], p[5], p[6], p[7], u_res),
-					evaluateBezierCurve(p[8], p[9], p[10], p[11], u_res),
-					evaluateBezierCurve(p[12], p[13], p[14], p[15], u_res), v_res);
-					*/
-				//glVertex3f(point.x, point.y, point.z);
-				//v += (1.0 / v_res); */
-			//}
-			u += (1.0 / u_res);
-		}
-	
-
+void renderBezierSurface(vector<glm::vec3> p, int u_res) {
+	float u = 0.0;
+	while (u <= 1.0 - (1.0 / u_res) + 0.0001) {
+		renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
+			evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
+			evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
+			evaluateBezierCurve(p[12], p[13], p[14], p[15], u),
+			evaluateBezierCurve(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
+		u += (1.0 / u_res);
+	}
 }
 
 
@@ -257,8 +237,7 @@ static void error_callback( int error, const char* description ) {
 static void keyboard_callback( GLFWwindow *window, int key, int scancode, int action, int mods ) {
 	if( action == GLFW_PRESS || action == GLFW_REPEAT ) {
 		switch( key ) {
-			case GLFW_KEY_ESCAPE: // Escape and Q quit the program
-			case GLFW_KEY_Q:
+			case GLFW_KEY_ESCAPE: // Escape quits the program
 				exit(EXIT_SUCCESS);
 				break;
 			case GLFW_KEY_UP:	// Up arrow key moves camera inward
@@ -289,6 +268,14 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 				turning = true;
 				turnDirection = -1.0f;
 				break;
+			case GLFW_KEY_Q:
+				surfaceRes++;
+				break;
+			case GLFW_KEY_E:
+				if (surfaceRes != 1) {
+					surfaceRes--;
+				}
+				break;
 		}
 	}
 	else{
@@ -299,17 +286,6 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 		cameraOut = false;
 		cameraLeft = false;
 		cameraRight = false;
-	}
-
-	if(action == GLFW_PRESS){
-		switch(key){
-			case GLFW_KEY_1: // 1 key toggles control cage visibility
-				cageOn = !cageOn;
-				break;
-			case GLFW_KEY_2: // 2 key toggles Bezier curve visibility
-				curveOn = !curveOn;
-				break;
-		}
 	}
 }
 
@@ -560,6 +536,13 @@ void generateEnvironmentDL() {
 	glNewList(environmentDL, GL_COMPILE);
 		drawGrid();
 	glEndList();
+
+
+	terrainDL = glGenLists(1);
+	glNewList(terrainDL, GL_COMPILE);
+	//	renderBezierSurface(controlPoints, surfaceRes);
+	glEndList();
+
 }
 
 //
@@ -569,6 +552,7 @@ void generateEnvironmentDL() {
 //
 void renderScene(void)  {
 	glCallList(environmentDL);
+	//glCallList(terrainDL);
 	drawCharacter();
 	drawLamppost();
 	
@@ -581,13 +565,12 @@ void renderScene(void)  {
 		glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	}
 	
-	glDisable(GL_LIGHTING);
-	
-	glColor3ub(255, 255, 0);
 
-	renderBezierSurface(controlPoints, 200, 200);
+	renderBezierSurface(controlPoints, surfaceRes);
 
-	glEnable(GL_LIGHTING);
+
+
+
 }
 
 //*************************************************************************************
@@ -667,8 +650,7 @@ void setupOpenGL() {
 
 	// tell OpenGL not to use the material system; just use whatever we
 	// pass with glColor*()
-	glEnable(GL_COLOR_MATERIAL);
-	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
 	//******************************************************************
 
 	// tells OpenGL to blend colors across triangles. Once lighting is
