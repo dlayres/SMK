@@ -78,17 +78,22 @@ vector<float> animateVals;							// vector to store a few different animation cy
 
 vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
 
+<<<<<<< HEAD
 map<float, float> lookupTable;	
 int tableResolution = 1000;								// for smooth vehicle movement
 
 bool cageOn = true;									// Determines if the cage/curve should be visible or not
 bool curveOn = true;
+=======
+int surfaceRes = 3;
+>>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
 glm::mat4 scaleMtx;
 
-GLuint environmentDL;                       		// display list for the 'city'
+GLuint environmentDL;
+GLuint terrainDL;
 
 //*************************************************************************************
 //
@@ -157,8 +162,6 @@ bool loadControlPoints( char* filename ) {
 		controlPoints.push_back(controlPoint);
 	}
 
-
-
 	return true;
 }
 
@@ -180,17 +183,32 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 //  Breaks the curve into n segments as specified by the resolution.
 //
 ////////////////////////////////////////////////////////////////////////////////
-void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, int resolution ) {
-	glBegin(GL_LINE_STRIP);
+void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, glm::vec3 p5, glm::vec3 p6, glm::vec3 p7, int resolution ) {
 	float t = 0.0;
-	while(t <= 1.0 + (1.0 / resolution)){
-		glm::vec3 nextPoint = evaluateBezierCurve(p0, p1, p2, p3, t);
-		glVertex3f(nextPoint.x, nextPoint.y, nextPoint.z);
+	while(t <= 1.0 - (1.0 / resolution) + 0.0001){
+		glm::vec3 nextPoint1 = evaluateBezierCurve(p0, p1, p2, p3, t);
+		glm::vec3 nextPoint2 = evaluateBezierCurve(p0, p1, p2, p3, t + (1.0 / resolution));
+		glm::vec3 nextPoint3 = evaluateBezierCurve(p4, p5, p6, p7, t);
+		glm::vec3 nextPoint4 = evaluateBezierCurve(p4, p5, p6, p7, t + (1.0 / resolution));
+
+		glm::vec3 crossPoint1 = nextPoint2 - nextPoint1;
+		glm::vec3 crossPoint2 = nextPoint3 - nextPoint1;
+
+		glm::vec3 normalVec = glm::cross(crossPoint1, crossPoint2);
+		glNormal3f(normalVec.x, normalVec.y, normalVec.z);
+
+		glBegin(GL_TRIANGLE_STRIP);
+			glVertex3f(nextPoint1.x, nextPoint1.y, nextPoint1.z);
+			glVertex3f(nextPoint2.x, nextPoint2.y, nextPoint2.z);
+			glVertex3f(nextPoint3.x, nextPoint3.y, nextPoint3.z);
+			glVertex3f(nextPoint4.x, nextPoint4.y, nextPoint4.z);
+		glEnd();
+
 		t += (1.0/resolution);
 	}
-	glEnd();
 }
 
+<<<<<<< HEAD
 void generateLookupTable() {
 	lookupTable.clear();
 	float distance = 0;
@@ -210,6 +228,30 @@ float getParameterizedt(float pos) {
 	float top = lookupTable.at(ceil(pos * tableResolution) / tableResolution);
 	return (bot * (1 - (racerPos - floor(racerPos))) + top * (racerPos - floor(racerPos)));
 }
+=======
+// renderBezierSurface() //////////////////////////////////////////////////////////
+//
+// 
+//  
+//
+////////////////////////////////////////////////////////////////////////////////
+void renderBezierSurface(vector<glm::vec3> p, int u_res) {
+	float u = 0.0;
+	while (u <= 1.0 - (1.0 / u_res) + 0.0001) {
+		renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
+			evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
+			evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
+			evaluateBezierCurve(p[12], p[13], p[14], p[15], u),
+			evaluateBezierCurve(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
+			evaluateBezierCurve(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
+		u += (1.0 / u_res);
+	}
+}
+
+
+>>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
 
 //*************************************************************************************
 //
@@ -230,8 +272,7 @@ static void error_callback( int error, const char* description ) {
 static void keyboard_callback( GLFWwindow *window, int key, int scancode, int action, int mods ) {
 	if( action == GLFW_PRESS || action == GLFW_REPEAT ) {
 		switch( key ) {
-			case GLFW_KEY_ESCAPE: // Escape and Q quit the program
-			case GLFW_KEY_Q:
+			case GLFW_KEY_ESCAPE: // Escape quits the program
 				exit(EXIT_SUCCESS);
 				break;
 			case GLFW_KEY_UP:	// Up arrow key moves camera inward
@@ -262,6 +303,14 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 				turning = true;
 				turnDirection = -1.0f;
 				break;
+			case GLFW_KEY_Q:
+				surfaceRes++;
+				break;
+			case GLFW_KEY_E:
+				if (surfaceRes != 1) {
+					surfaceRes--;
+				}
+				break;
 		}
 	}
 	else{
@@ -272,17 +321,6 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 		cameraOut = false;
 		cameraLeft = false;
 		cameraRight = false;
-	}
-
-	if(action == GLFW_PRESS){
-		switch(key){
-			case GLFW_KEY_1: // 1 key toggles control cage visibility
-				cageOn = !cageOn;
-				break;
-			case GLFW_KEY_2: // 2 key toggles Bezier curve visibility
-				curveOn = !curveOn;
-				break;
-		}
 	}
 }
 
@@ -332,8 +370,8 @@ static void mouse_button_callback( GLFWwindow *window, int button, int action, i
 ////////////////////////////////////////////////////////////////////////////////
 static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset){
 	camDistance -= yoffset;
-	if(camDistance < 5){
-		camDistance = 5;
+	if(camDistance < 1){
+		camDistance = 1;
 	}
 	else if(camDistance > 15){
 		camDistance = 15;
@@ -565,6 +603,13 @@ void generateEnvironmentDL() {
 	glNewList(environmentDL, GL_COMPILE);
 		drawGrid();
 	glEndList();
+
+
+	terrainDL = glGenLists(1);
+	glNewList(terrainDL, GL_COMPILE);
+	//	renderBezierSurface(controlPoints, surfaceRes);
+	glEndList();
+
 }
 
 //
@@ -577,6 +622,7 @@ void renderScene(void)  {
 	racerPos += .01;
 
 	glCallList(environmentDL);
+	//glCallList(terrainDL);
 	drawCharacter();
 	drawLamppost();
 	
@@ -585,10 +631,11 @@ void renderScene(void)  {
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
 		glMultMatrixf(&transMtx[0][0]);
 		glLoadName(i);
-		CSCI441::drawSolidSphere(0.3, 20, 20);
+		CSCI441::drawSolidSphere(0.07, 20, 20);
 		glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	}
 	
+<<<<<<< HEAD
 	//draws curve
 	glDisable(GL_LIGHTING);
 	
@@ -605,8 +652,11 @@ void renderScene(void)  {
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
+=======
+>>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
 
-	glEnable(GL_LIGHTING);
+	renderBezierSurface(controlPoints, surfaceRes);
+
 
 
 
@@ -672,34 +722,33 @@ GLFWwindow* setupGLFW() {
 void setupOpenGL() {
 	// tell OpenGL to perform depth testing with the Z-Buffer to perform hidden
 	//		surface removal.  We will discuss this more very soon.
-	glEnable( GL_DEPTH_TEST );
+	glEnable(GL_DEPTH_TEST);
 
 	//******************************************************************
 	// this is some code to enable a default light for the scene;
 	// feel free to play around with this, but we won't talk about
 	// lighting in OpenGL for another couple of weeks yet.
-	float lightCol[4] = { 1, 1, 1, 1};
+	float lightCol[4] = { 1, 1, 1, 1 };
 	float ambientCol[4] = { 0.0, 0.0, 0.0, 1.0 };
 	float lPosition[4] = { 10, 10, 10, 1 };
-	glLightfv( GL_LIGHT0, GL_POSITION,lPosition );
-	glLightfv( GL_LIGHT0, GL_DIFFUSE,lightCol );
-	glLightfv( GL_LIGHT0, GL_AMBIENT, ambientCol );
-	glEnable( GL_LIGHTING );
-	glEnable( GL_LIGHT0 );
+	glLightfv(GL_LIGHT0, GL_POSITION, lPosition);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightCol);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientCol);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
 
 	// tell OpenGL not to use the material system; just use whatever we
 	// pass with glColor*()
-	glEnable( GL_COLOR_MATERIAL );
-	glColorMaterial( GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE );
+
 	//******************************************************************
 
 	// tells OpenGL to blend colors across triangles. Once lighting is
 	// enabled, this means that objects will appear smoother - if your object
 	// is rounded or has a smooth surface, this is probably a good idea;
 	// if your object has a blocky surface, you probably want to disable this.
-	glShadeModel( GL_SMOOTH );
+	glShadeModel(GL_SMOOTH);
 
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );	// set the clear color to black
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
 }
 
 //
@@ -730,7 +779,7 @@ void setupScene() {
 	animateVals.push_back(-0.2);
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
-	
+
 	// give the camera a scenic starting point.
 	camPos.x = 5;
 	camPos.y = 5;
@@ -744,7 +793,7 @@ void setupScene() {
 	heroDir = glm::vec3(0, 0, 1);
 	recomputeOrientation();
 
-	srand( time(NULL) );	// seed our random number generator
+	srand(time(NULL));	// seed our random number generator
 	generateEnvironmentDL();
 }
 
@@ -757,8 +806,8 @@ void setupScene() {
 //
 //		Really you should know what this is by now.  We will make use of the parameters later
 //
-int main( int argc, char *argv[] ) {
-	if(argc != 2){
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
 		fprintf(stderr, "[ERROR]: Control point CSV not passed into command line\n");
 		exit(EXIT_FAILURE);
 	}
