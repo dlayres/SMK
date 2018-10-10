@@ -78,15 +78,12 @@ vector<float> animateVals;							// vector to store a few different animation cy
 
 vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
 
-<<<<<<< HEAD
 map<float, float> lookupTable;	
 int tableResolution = 1000;								// for smooth vehicle movement
 
 bool cageOn = true;									// Determines if the cage/curve should be visible or not
 bool curveOn = true;
-=======
 int surfaceRes = 3;
->>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
@@ -208,7 +205,6 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 	}
 }
 
-<<<<<<< HEAD
 void generateLookupTable() {
 	lookupTable.clear();
 	float distance = 0;
@@ -228,7 +224,6 @@ float getParameterizedt(float pos) {
 	float top = lookupTable.at(ceil(pos * tableResolution) / tableResolution);
 	return (bot * (1 - (racerPos - floor(racerPos))) + top * (racerPos - floor(racerPos)));
 }
-=======
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
 // 
@@ -249,9 +244,6 @@ void renderBezierSurface(vector<glm::vec3> p, int u_res) {
 		u += (1.0 / u_res);
 	}
 }
-
-
->>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
 
 //*************************************************************************************
 //
@@ -635,7 +627,6 @@ void renderScene(void)  {
 		glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	}
 	
-<<<<<<< HEAD
 	//draws curve
 	glDisable(GL_LIGHTING);
 	
@@ -652,8 +643,7 @@ void renderScene(void)  {
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
-=======
->>>>>>> 147101d561e6651df1d5fba2327bcaf6a16c37db
+
 
 	renderBezierSurface(controlPoints, surfaceRes);
 
