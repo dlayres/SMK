@@ -615,6 +615,8 @@ void renderScene(void)  {
 	drawCharacter();
 	drawLamppost();
 	
+
+	// draws surface control points
 	glColor3ub(0, 255, 0);
 	for(unsigned int i = 0; i < controlPoints.size(); i++){
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
