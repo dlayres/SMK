@@ -92,6 +92,15 @@ glm::mat4 scaleMtx;
 GLuint environmentDL;
 GLuint terrainDL;
 
+bool arcballCam = true;
+bool freeCam = false;
+bool firstPersonCam = false;
+
+// For free cam
+glm::vec3 freeCamPos, freeCamDir;
+float yaw = 0.0f;
+float pitch = 0.0f;
+
 //*************************************************************************************
 //
 // Helper Functions
@@ -303,6 +312,21 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 					surfaceRes--;
 				}
 				break;
+			case GLFW_KEY_1:
+				arcballCam = !arcballCam;
+				freeCam = false;
+				firstPersonCam = false;
+				break;
+			case GLFW_KEY_2:
+				arcballCam = false;
+				freeCam = !freeCam;
+				firstPersonCam = false;
+				break;
+			case GLFW_KEY_3:
+				arcballCam = false;
+				freeCam = false;
+				firstPersonCam = !firstPersonCam;
+				break;
 		}
 	}
 	else{
@@ -336,6 +360,14 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 			cameraPhi = 0.01;
 		}
 		recomputeOrientation();     // update camera (x,y,z) based on (theta,phi)
+		
+
+		if(freeCam) {
+			float mdx = x - mousePos.x;
+			float mdy = y - mousePos.y;
+			yaw += mdx * 0.02f;
+			pitch += mdy * 0.02f;
+		}
 	}
 
 	mousePos.x = x;
@@ -474,7 +506,7 @@ void drawLeg(){ // Draws a single leg
 	CSCI441::drawSolidSphere(0.08, 20, 20);
 }
 
-void drawCharacter(){ // Draws character from upper half and two legs
+void drawCharacter() { // Draws character from upper half and two legs
 	transMtx = glm::translate(glm::mat4(), heroPos); // Checks the orientation of the hero and draws the upper half accordingly
 	glMultMatrixf(&transMtx[0][0]);
 	rotateMtx = glm::rotate(glm::mat4(), heroAngle, glm::vec3(0, 1, 0));
@@ -615,7 +647,7 @@ void renderScene(void)  {
 
 	glCallList(environmentDL);
 	//glCallList(terrainDL);
-	drawCharacter();
+	if(!firstPersonCam) drawCharacter();
 	drawLamppost();
 	
 	glColor3ub(0, 255, 0);
@@ -641,7 +673,7 @@ void renderScene(void)  {
 	
 	glColor3ub(255, 255, 0);
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
-		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
+		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
 
 
@@ -783,6 +815,14 @@ void setupScene() {
 	heroDir = glm::vec3(0, 0, 1);
 	recomputeOrientation();
 
+	freeCamDir.x = 0.0f;
+	freeCamDir.y = 0.0f;
+	freeCamDir.z = 1.0f;
+
+	freeCamPos.x = 0.0f;
+	freeCamPos.y = 1.0f;
+	freeCamPos.z = 0.0f;
+
 	srand(time(NULL));	// seed our random number generator
 	generateEnvironmentDL();
 }
@@ -837,72 +877,91 @@ int main(int argc, char *argv[]) {
 		glMatrixMode( GL_MODELVIEW );	// make the ModelView matrix current to be modified by any transformations
 		glLoadIdentity();							// set the matrix to be the identity
 
-		// set up our look at matrix to position our camera
-		glm::mat4 viewMtx = glm::lookAt( camPos,		// position camera is located
-										 heroPos + glm::vec3(0, 1, 0),		// where the camera is looking (at the hero)
-										 glm::vec3(  0,  1,  0 ) );		// up vector is (0, 1, 0) - positive Y
+		glm::mat4 viewMtx;
+		if(arcballCam) {
+			viewMtx = glm::lookAt( camPos, heroPos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
+		} else if (freeCam) {
+			freeCamDir.x = cos(yaw);
+			freeCamDir.y = sin(pitch);
+			freeCamDir.z = sin(yaw);
+			freeCamDir = glm::normalize(freeCamDir);
+
+			if(walking) {
+				freeCamPos += freeCamDir * direction * walkSpeed;
+			}
+
+
+			viewMtx = glm::lookAt(freeCamPos, freeCamPos + freeCamDir, glm::vec3(0, 1, 0));
+		} else if (firstPersonCam) {
+			glm::vec3 normalDir = glm::normalize(heroDir);
+			glm::vec3 pos = glm::vec3(heroPos.x, 1.2f, heroPos.z);
+			viewMtx = glm::lookAt(pos, pos + normalDir, glm::vec3(  0,  1,  0 ) );
+		}
+
 		// multiply by the look at matrix - this is the same as our view martix
 		glMultMatrixf( &viewMtx[0][0] );
 
 		renderScene();					// draw everything to the window
 
-		// Checks what direction the camera is moving (if any) and recomputes camera orientation
-		if(cameraIn){
-			camDistance -= 0.2;
-			recomputeOrientation();
-			if(camDistance < 5){
-				camDistance = 5;
+		if(arcballCam) {
+			// Checks what direction the camera is moving (if any) and recomputes camera orientation
+			if(cameraIn) {
+				camDistance -= 0.2;
+				recomputeOrientation();
+				if(camDistance < 5){
+					camDistance = 5;
+					recomputeOrientation();
+				}
+			}
+			else if(cameraOut){
+				camDistance += 0.2;
+				recomputeOrientation();
+				if(camDistance > 15){
+					camDistance = 15;
+					recomputeOrientation();
+				}
+			}
+			else if(cameraLeft){
+				cameraTheta += 0.05;
+				recomputeOrientation();
+			}
+			else if(cameraRight){
+				cameraTheta -= 0.05;
 				recomputeOrientation();
 			}
 		}
-		else if(cameraOut){
-			camDistance += 0.2;
-			recomputeOrientation();
-			if(camDistance > 15){
-				camDistance = 15;
+
+		if(arcballCam || firstPersonCam) {
+			// Checks what the hero is doing, and moves/animates the hero accordingly
+			if(walking && turning){
+				heroPos = heroPos + (direction * walkSpeed * heroDir);
+				heroAngle += turnDirection * turnSpeed;
 				recomputeOrientation();
+				checkBounds();
+
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				animationFrame = animateVals[animateIndex];
+			}
+			else if(walking){
+				heroPos = heroPos + (direction * walkSpeed * heroDir);
+				recomputeOrientation();
+				checkBounds();
+
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				animationFrame = animateVals[animateIndex];
+			}
+			else if(turning){
+				heroAngle += turnDirection * turnSpeed;
+				recomputeOrientation();
+
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				animationFrame = animateVals[animateIndex];
+			}
+			else{
+				animationFrame = 0; // Default state for the hero
+				animateIndex = 5;
 			}
 		}
-		else if(cameraLeft){
-			cameraTheta += 0.05;
-			recomputeOrientation();
-		}
-		else if(cameraRight){
-			cameraTheta -= 0.05;
-			recomputeOrientation();
-		}
-
-		// Checks what the hero is doing, and moves/animates the hero accordingly
-		if(walking && turning){
-			heroPos = heroPos + (direction * walkSpeed * heroDir);
-			heroAngle += turnDirection * turnSpeed;
-			recomputeOrientation();
-			checkBounds();
-
-			animateIndex = (animateIndex + 1) % animateVals.size();
-			animationFrame = animateVals[animateIndex];
-		}
-		else if(walking){
-			heroPos = heroPos + (direction * walkSpeed * heroDir);
-			recomputeOrientation();
-			checkBounds();
-
-			animateIndex = (animateIndex + 1) % animateVals.size();
-			animationFrame = animateVals[animateIndex];
-		}
-		else if(turning){
-			heroAngle += turnDirection * turnSpeed;
-			recomputeOrientation();
-
-			animateIndex = (animateIndex + 1) % animateVals.size();
-			animationFrame = animateVals[animateIndex];
-		}
-		else{
-			animationFrame = 0; // Default state for the hero
-			animateIndex = 5;
-		}
-
-
 
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
