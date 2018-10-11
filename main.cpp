@@ -33,6 +33,7 @@
 #include <fstream>			// for file I/O
 #include <vector>				// for vectors
 #include <iostream>
+#include <map>
 
 using namespace std;
 
@@ -63,6 +64,9 @@ glm::vec3 heroDir;									// vector for the direction the hero is facing
 float walkSpeed = 0.05f;							// speed the hero is walking as a factor of a unit vector
 float turnSpeed = 0.05f;							// speed the hero is turning
 
+float racerPos = 0;									// t value for racing heroes
+
+
 bool walking = false;								// values that determine whether or not the hero is turning and/or walking
 bool turning = false;
 float direction = 1.0f;								// direction the hero is walking (forwards = 1.0, backwards = -1.0)
@@ -74,6 +78,11 @@ vector<float> animateVals;							// vector to store a few different animation cy
 
 vector<glm::vec3> controlPoints; 					// control points for Bezier curve
 
+map<float, float> lookupTable;	
+int tableResolution = 1000;								// for smooth vehicle movement
+
+bool cageOn = true;									// Determines if the cage/curve should be visible or not
+bool curveOn = true;
 int surfaceRes = 3;
 
 glm::mat4 transMtx; 								// global variables used for transformations
@@ -159,6 +168,7 @@ bool loadControlPoints( char* filename ) {
 // Computes a location along a Bezier Curve.
 //
 ////////////////////////////////////////////////////////////////////////////////
+
 glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t ) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
 	return point;
@@ -195,6 +205,25 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 	}
 }
 
+void generateLookupTable() {
+	lookupTable.clear();
+	float distance = 0;
+	glm::vec3 lastPoint = controlPoints[0];
+	for (unsigned int i = 0; i + 1 < controlPoints.size(); i += 3) {
+		for (float j = 0; j < tableResolution; j += 1) {
+			glm::vec3 point = evaluateBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], j / tableResolution);
+			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
+			float t = i + j / tableResolution;
+			lookupTable[t] = distance;
+		}
+	}
+}
+
+float getParameterizedt(float pos) {
+	float bot = lookupTable.at(floor(pos * tableResolution) / tableResolution);
+	float top = lookupTable.at(ceil(pos * tableResolution) / tableResolution);
+	return (bot * (1 - (racerPos - floor(racerPos))) + top * (racerPos - floor(racerPos)));
+}
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
 // 
@@ -215,8 +244,6 @@ void renderBezierSurface(vector<glm::vec3> p, int u_res) {
 		u += (1.0 / u_res);
 	}
 }
-
-
 
 //*************************************************************************************
 //
@@ -520,6 +547,38 @@ void drawLamppost(){ // Draws a single lamppost
 	glMultMatrixf(&transMtx[0][0]);
 }
 
+void drawVehicleNotParameterized() {
+	if (racerPos > ceil((controlPoints.size()) / 3))
+		racerPos = 0;
+
+
+	//move to location on bezier curve
+	int p0 = floor(racerPos) * 3;
+	float t = racerPos - floor(racerPos);
+	glm::vec3 loc = evaluateBezierCurve(controlPoints.at(p0), controlPoints.at(p0 + 1), controlPoints.at(p0 + 2), controlPoints.at(p0 + 3), t);
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glMultMatrixf(&transMtx[0][0]);
+	//draw vehicle
+
+
+	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
+}
+
+void drawVehicleParameterized() {
+
+
+	//lerp
+	float t = getParameterizedt(racerPos);
+	//move to location on bezier curve
+	int p0 = floor(t) * 3;
+	glm::vec3 loc = evaluateBezierCurve(controlPoints.at(p0), controlPoints.at(p0 + 1), controlPoints.at(p0 + 2), controlPoints.at(p0 + 3), t);
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glMultMatrixf(&transMtx[0][0]);
+	//draw vehicle
+
+
+	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
+}
 
 // generateEnvironmentDL() /////////////////////////////////////////////////////
 //
@@ -551,6 +610,9 @@ void generateEnvironmentDL() {
 //		This method will contain all of the objects to be drawn.
 //
 void renderScene(void)  {
+	// update vehicle position
+	racerPos += .01;
+
 	glCallList(environmentDL);
 	//glCallList(terrainDL);
 	drawCharacter();
@@ -565,6 +627,23 @@ void renderScene(void)  {
 		glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	}
 	
+	//draws curve
+	glDisable(GL_LIGHTING);
+	
+	glLineWidth(3);
+	glColor3ub(0, 0, 255);
+	glBegin(GL_LINE_LOOP);
+	for(unsigned int i = 0; i < controlPoints.size(); i++){
+		glVertex3f(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z);
+	}
+	glEnd();
+	glLineWidth(1);
+	
+	glColor3ub(255, 255, 0);
+	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
+		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
+	}
+
 
 	renderBezierSurface(controlPoints, surfaceRes);
 
