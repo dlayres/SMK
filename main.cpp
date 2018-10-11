@@ -72,7 +72,7 @@ float animationFrame = 0.0f;						// value for the current animation cycle (used
 int animateIndex = 5;								// index the value of the animation cycle is in the following vector
 vector<float> animateVals;							// vector to store a few different animation cycle values
 
-vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
+vector<glm::vec3> controlPoints; 					// control points for Bezier curve
 
 int surfaceRes = 3;
 
