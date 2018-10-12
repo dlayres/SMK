@@ -35,6 +35,9 @@
 #include <vector>				// for vectors
 #include <iostream>
 #include <map>
+#include <string>
+#include <sstream>
+#include <math.h>
 
 #include "HeroBase.h"
 #include "Alex.h"
@@ -91,17 +94,28 @@ vector<glm::vec3> curveControlPoints;				// control points for Bezier curve
 vector<glm::vec3> cactusPoints;
 vector<glm::vec3> lampPoints;
 
-map<float, float> lookupTable;	
+map<float, float> lookupTable;
+
+map<pair<float, float>, float> totalPoints;
+pair<float, float> mew(1.2, 2.4);
+
 
 int tableResolution = 100;								// for smooth vehicle movement
 
-int surfaceRes = 50;
+int surfaceRes = 100;
 float height = 0;
+
 int numObjects;
+
+int scaleConstant = 10;
+int heightScaleConstant = 4;
+
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
 glm::mat4 scaleMtx;
+
+map<pair<float, float>, float> surfacePoints;
 
 GLuint cloudTexHandle;
 
@@ -136,6 +150,10 @@ Sav sav(glm::vec3(5.0f, 20.0f, 15.0f));
 //
 ////////////////////////////////////////////////////////////////////////////////
 float getRand() { return rand() / (float)RAND_MAX; }
+
+float getDist(float x1, float y1, float x2, float y2){
+	return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+}
 
 // recomputeOrientation() //////////////////////////////////////////////////////
 //
@@ -217,7 +235,7 @@ bool loadPoints( char* filename ) {
 			getline(inputFile, x, ',');
 			getline(inputFile, y, ',');
 			getline(inputFile, z);
-			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * 10, atof(y.c_str()) * 4, atof(z.c_str()) * 10);
+			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * scaleConstant, atof(y.c_str()) * heightScaleConstant, atof(z.c_str()) * scaleConstant);
 			newSurface.push_back(controlPoint);
 		}
 		controlPoints.push_back(newSurface);
@@ -242,7 +260,6 @@ bool loadPoints( char* filename ) {
 	string objx, objy;
 	getline(inputFile, numObjectsStr);
 	sscanf(numObjectsStr.c_str(), "%d", &numObjects);
-	cout << numObjects << endl;
 	for(int i = 0; i < numObjects; i++) {
 		getline(inputFile, objType, ',');
 		getline(inputFile, objx, ',');
@@ -261,6 +278,55 @@ bool loadPoints( char* filename ) {
 	return true;
 }
 
+float round(float var){
+	float value = (int)(var * 100 + .5);
+	return (float)value / 100;
+}
+
+float calcHeight(float x, float y) {
+
+
+
+
+	cout << "x: " << x << "y: " << y << endl;
+	
+	while (x > 100) {
+		x = x - 100;
+	}
+	while (y > 100) {
+		y =y - 100;
+	}
+	while (x < 0) {
+		x = x + 100;
+	}
+	while (y < 0) {
+		y = y + 100;
+	}
+	pair<float, float> temp(round(x), round(y));
+	//stringstream iss;
+	//iss << x;
+	//string x_t = iss.str();
+	//stringstream iss2;
+	//iss2 << y;
+	//string y_t = iss2.str();
+	//string both = x_t + " " + y_t;
+
+
+	//if (totalPoints.find(temp) == totalPoints.end()) {
+		//cout << "key not found" << endl;
+		map<pair<float, float>, float>::iterator lower = totalPoints.lower_bound(temp);
+		map<pair<float, float>, float>::iterator upper = totalPoints.upper_bound(temp);
+		return upper->second;
+		//return (upper->second + lower->second) / 2;
+		//return ( (upper->second * (temp.first / upper->first.first) * (temp.second / upper->first.second) / upper->first.first) + (lower->second * (upper->first.first - (temp.first / upper->first.first)) * (upper->first.second - upper->first.second / temp.second)) / upper->first.second);
+	//}
+
+	//cout << both << endl;
+	//cout << totalPoints[both] << endl;
+	//cout << totalPoints[both] << endl;
+	return totalPoints[temp];
+}
+
 
 // evaluateBezierCurve() ////////////////////////////////////////////////////////
 //
@@ -270,7 +336,64 @@ bool loadPoints( char* filename ) {
 
 glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t ) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
+
+	
+	
+	/*stringstream iss;
+	iss << round(point.x);
+	string x = iss.str();
+	stringstream iss2;
+	iss2 << round(abs(point.z));
+	string y = iss2.str();
+	string both = x + " " + y;
+	glm::vec3 temp(point.x, point.z, 0);
+	*/
+	
+	//cout << both << endl;
+	//float z = point.y;
+	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
+	//totalPoints[both] = z;
+
+	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	//if(find(std::begin(a), std::end(a), x) != std::end(a))
+	pair<float, float> coords(point.x, point.z);
+	surfacePoints[coords] = point.y;
+
 	return point;
+}
+glm::vec3 evaluateBezierCurve2(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
+	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
+
+
+	/*stringstream iss;
+	iss << round(point.x);
+	string x = iss.str();
+	stringstream iss2;
+	iss2 << round(abs(point.z));
+	string y = iss2.str();
+	string both = x + " " + y;
+	glm::vec3 temp(point.x, point.z, 0);
+	*/
+	pair<float, float> temp(round(point.x), abs(round(point.z)));
+	cout << temp.first << " " << temp.second << " " << point.y << endl;
+	totalPoints[temp] = point.y;
+
+	//cout << both << endl;
+	//float z = point.y;
+	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
+	//totalPoints[both] = z;
+
+	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	//if(find(std::begin(a), std::end(a), x) != std::end(a))
+
+
+
+	pair<float, float> coords(point.x, point.z);
+	surfacePoints[coords] = point.y;
+
+
+	return point;
+
 }
 
 // renderBezierCurve() //////////////////////////////////////////////////////////
@@ -281,7 +404,7 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, glm::vec3 p5, glm::vec3 p6, glm::vec3 p7, int resolution ) {
 	float t = 0.0;
-	while(t <= 1.0 - (1.0 / resolution) + 0.0001){
+	while(t <= 1.0 - (1.0 / resolution) + 0.0001) {
 		glm::vec3 nextPoint1 = evaluateBezierCurve(p0, p1, p2, p3, t);
 		glm::vec3 nextPoint2 = evaluateBezierCurve(p0, p1, p2, p3, t + (1.0 / resolution));
 		glm::vec3 nextPoint3 = evaluateBezierCurve(p4, p5, p6, p7, t);
@@ -300,8 +423,28 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 			glVertex3f(nextPoint4.x, nextPoint4.y, nextPoint4.z);
 		glEnd();
 
+		//pair<float, float> temp(round(point.x), abs(round(point.z)));
+		/*
+		totalPoints[pair<float, float>(nextPoint1.x, nextPoint1.z)] = nextPoint1.y;
+		totalPoints[pair<float, float>(nextPoint2.x, nextPoint2.z)] = nextPoint2.y;
+		totalPoints[pair<float, float>(nextPoint3.x, nextPoint3.z)] = nextPoint3.y;
+		totalPoints[pair<float, float>(nextPoint4.x, nextPoint4.z)] = nextPoint4.y;
+		pair<float, float> temp(nextPoint4.x, nextPoint4.z);
+		*/
+		//cout << totalPoints[temp] << endl;
+
 		t += (1.0/resolution);
 	}
+}
+void renderBezierCurve1(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, int resolution) {
+	glDisable(GL_LIGHTING);
+	glBegin(GL_LINE_STRIP);
+	for (float i = 0; i < resolution; i += 1) {
+		glm::vec3 point = evaluateBezierCurve(p0, p1, p2, p3, i / resolution);
+		glVertex3f(point.x, point.y, point.z);
+	}
+	glEnd();
+	glEnable(GL_LIGHTING);
 }
 
 void generateLookupTable() {
@@ -334,21 +477,21 @@ float getParameterizedt(float pos) {
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
-// 
-//  
+//
+//
 //
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierSurface(vector<glm::vec3> p, int u_res) {
 	float u = 0.0;
 	while (u <= 1.0 - (1.0 / u_res) + 0.0001) {
-		renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
-			evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
-			evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
-			evaluateBezierCurve(p[12], p[13], p[14], p[15], u),
-			evaluateBezierCurve(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
+		renderBezierCurve(evaluateBezierCurve2(p[0], p[1], p[2], p[3], u),
+			evaluateBezierCurve2(p[4], p[5], p[6], p[7], u),
+			evaluateBezierCurve2(p[8], p[9], p[10], p[11], u),
+			evaluateBezierCurve2(p[12], p[13], p[14], p[15], u),
+			evaluateBezierCurve2(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
 		u += (1.0 / u_res);
 	}
 }
@@ -459,7 +602,7 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 	if( leftMouseButton == GLFW_PRESS ) {
 		currHero->cameraTheta -= (0.005 * (x - mousePos.x));
 		currHero->cameraPhi += (0.005 * (mousePos.y - y));
-		
+
 		if(currHero->cameraPhi > M_PI - 0.01){
 			currHero->cameraPhi = M_PI - 0.01;
 		}
@@ -467,7 +610,7 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 			currHero->cameraPhi = 0.01;
 		}
 		recomputeOrientation();     // update camera (x,y,z) based on (theta,phi)
-		
+
 		if(currCam == FREE_CAM) {
 			float mdx = x - mousePos.x;
 			float mdy = y - mousePos.y;
@@ -512,8 +655,8 @@ static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset)
 	if(currHero->camDistance < 1){
 		currHero->camDistance = 1;
 	}
-	else if(currHero->camDistance > 15){
-		currHero->camDistance = 15;
+	else if(currHero->camDistance > 150){
+		currHero->camDistance = 150;
 
 	}
 	recomputeOrientation();
@@ -779,9 +922,13 @@ void drawVehicleParameterized() {
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
 
-void drawLandscape() {
-
+void drawBezierCurve() {
+	glColor3f(0.098, 0.701, 0.980);
+	for (size_t i = 0; i < curveControlPoints.size() - 3; i += 3) {
+		renderBezierCurve1(curveControlPoints.at(i), curveControlPoints.at(i + 1), curveControlPoints.at(i + 2), curveControlPoints.at(i + 3), 100.0f);
+	}
 }
+
 
 // generateEnvironmentDL() /////////////////////////////////////////////////////
 //
@@ -803,10 +950,7 @@ void generateEnvironmentDL() {
 	terrainDL = glGenLists(1);
 
 
-
 	glNewList(terrainDL, GL_COMPILE);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-50, 0, 50));
-	glMultMatrixf(&transMtx[0][0]);
 	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
 
@@ -817,10 +961,10 @@ void generateEnvironmentDL() {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	glMaterialf(GL_FRONT, GL_SHININESS, .0 * 128);
-	for (unsigned int i = 0; i < controlPoints.size(); i++) {
-		renderBezierSurface(controlPoints[i], surfaceRes);
-	}
-	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
+	//for (unsigned int i = 0; i < controlPoints.size(); i++) {
+	//	renderBezierSurface(controlPoints[i], surfaceRes);
+	//}
+
 	glEndList();
 
 }
@@ -877,6 +1021,8 @@ void renderScene(void)  {
 	GLfloat matColorD2[4] = { 0.332741, 0.328634, 0.346435 };
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
+	drawBezierCurve();
+
 	alex.draw(false);
 	david.draw(false);
 	josh.draw(false);
@@ -894,7 +1040,20 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
+
+
+
 	
+=======
+
+	drawCactus();
+	glPopMatrix();
+	// Draw all the heros
+	alex.draw(false);
+	david.draw(false);
+
+
+
 	glColor3ub(255, 255, 0);
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
@@ -1063,6 +1222,19 @@ void setupScene() {
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
 
+	// give the camera a scenic starting point.
+	camPos.x = 5;
+	camPos.y = 5;
+	camPos.z = 5;
+	cameraTheta = -M_PI / 3.0f;
+	cameraPhi = M_PI / 2.8f;
+
+	// place the hero in a default position
+	heroPos = glm::vec3(0, 0.3, 0);
+	heroPos.y = calcHeight(heroPos.x, heroPos.z);
+	heroAngle = 0.0f;
+	heroDir = glm::vec3(0, 0, 1);
+
 	recomputeOrientation();
 
 	freeCamDir.x = 0.0f;
@@ -1115,21 +1287,21 @@ int main(int argc, char *argv[]) {
 	while( !glfwWindowShouldClose(window) ) {	// check if the window was instructed to be closed
 		glDrawBuffer( GL_BACK );
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+
 		GLint framebufferWidth, framebufferHeight;
 		glfwGetFramebufferSize( window, &framebufferWidth, &framebufferHeight );
 		glViewport(0, 0, framebufferWidth, framebufferHeight);
-		
+
 		glm::mat4 projMtx, viewMtx;
-		
+
 		projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
 		glMatrixMode( GL_PROJECTION );
 		glLoadIdentity();
 		glMultMatrixf( &projMtx[0][0] );
-		
+
 		glMatrixMode( GL_MODELVIEW );
 		glLoadIdentity();
-		
+
 		if(currCam == ARCBALL_CAM) {
 			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
 		} else if (currCam == FREE_CAM) {
@@ -1147,10 +1319,18 @@ int main(int argc, char *argv[]) {
 		}
 		glMultMatrixf( &viewMtx[0][0] );
 		renderScene();
-		
+
 		if(viewOverlay) {
-			glViewport(windowWidth - overlaySize, windowHeight - overlaySize, overlaySize, overlaySize);
-			
+			int overlayX = windowWidth - overlaySize;
+			int overlayY = windowHeight - overlaySize;
+
+			glEnable(GL_SCISSOR_TEST);
+			glScissor(overlayX, overlayY, overlaySize, overlaySize);
+			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+			glDisable(GL_SCISSOR_TEST);
+
+			glViewport(overlayX, overlayY, overlaySize, overlaySize);
+
 			projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
 			glMatrixMode( GL_PROJECTION );
 			glLoadIdentity();
@@ -1158,15 +1338,15 @@ int main(int argc, char *argv[]) {
 
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
-			
+
 			// First person camera view matrix
 			glm::vec3 normalDir = glm::normalize(currHero->direction);
-			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.2f, currHero->pos.z);
-			viewMtx = glm::lookAt(pos + normalDir, pos + 2.0f*normalDir, glm::vec3(  0,  1,  0 ) );
+			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.01f, currHero->pos.z);
+			viewMtx = glm::lookAt(pos + 0.5f*normalDir, pos + normalDir, glm::vec3(  0,  1,  0 ) );
 			glMultMatrixf(&viewMtx[0][0]);
 			renderScene();
 		}
-		
+
 		if(currCam == ARCBALL_CAM) {
 			// Checks what direction the camera is moving (if any) and recomputes camera orientation
 			if(cameraIn) {
@@ -1180,8 +1360,8 @@ int main(int argc, char *argv[]) {
 			else if(cameraOut){
 				currHero->camDistance += 0.2;
 				recomputeOrientation();
-				if(currHero->camDistance > 15){
-					currHero->camDistance = 15;
+				if(currHero->camDistance > 150){
+					currHero->camDistance = 150;
 					recomputeOrientation();
 				}
 			}
@@ -1195,12 +1375,45 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+/*
+		// Checks what the hero is doing, and moves/animates the hero accordingly
+		if(walking && turning){
+			heroPos = heroPos + (direction * walkSpeed * heroDir);
+			heroPos.y = calcHeight(heroPos.x, heroPos.z);
+			heroAngle += turnDirection * turnSpeed;
+			recomputeOrientation();
+			checkBounds();
+
+			animateIndex = (animateIndex + 1) % animateVals.size();
+			animationFrame = animateVals[animateIndex];
+		}
+		else if(walking){
+			heroPos = heroPos + (direction * walkSpeed * heroDir);
+			heroPos.y = calcHeight(heroPos.x, heroPos.z);
+			recomputeOrientation();
+			checkBounds();
+*/
 		// Whatever hero we want to freely walk around
 		if(currHero == &david && currCam == ARCBALL_CAM) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
 				currHero->yaw += turnDirection * turnSpeed;
+
+				float shortestDist = 100000.0;
+				float newY = 0.0;
+				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
+
+				while(it != surfacePoints.end()){
+					if(getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z) < shortestDist){
+						shortestDist = getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z);
+						newY = it->second;
+					}
+					it++;
+				}
+				currHero->pos.y = newY;
+				cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant << endl;
+
 				recomputeOrientation();
 				checkBounds();
 
@@ -1210,8 +1423,24 @@ int main(int argc, char *argv[]) {
 			}
 			else if(walking){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+
+
+				float shortestDist = 100000.0;
+				float newY = 0.0;
+				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
+
+				while(it != surfacePoints.end()){
+					if(getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z) < shortestDist){
+						shortestDist = getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z);
+						newY = it->second;
+					}
+					it++;
+				}
+				currHero->pos.y = newY ;
+				cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant<< endl;
 				recomputeOrientation();
 				checkBounds();
+
 
 				animateIndex = (animateIndex + 1) % animateVals.size();
 				// animationFrame = animateVals[animateIndex];
