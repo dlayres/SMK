@@ -25,6 +25,7 @@
 // include GLM libraries and matrix functions
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <SOIL/SOIL.h>
 
 #include <math.h>				// for cos(), sin() functionality
 #include <stdio.h>			// for printf functionality
@@ -88,6 +89,8 @@ glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
 glm::mat4 scaleMtx;
 
+GLuint cloudTexHandle;
+
 GLuint environmentDL;
 GLuint terrainDL;
 
@@ -133,6 +136,28 @@ void checkBounds(){
 	else if(heroPos.z > 50){
 		heroPos.z = 50;
 	}
+}
+
+void setupTextures() {
+
+	cloudTexHandle = SOIL_load_OGL_texture("textures/lessclouds.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_COMPRESS_TO_DXT);
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, cloudTexHandle);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexParameterf(GL_TEXTURE_2D,
+		GL_TEXTURE_MAG_FILTER,
+		GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D,
+		GL_TEXTURE_MIN_FILTER,
+		GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D,
+		GL_TEXTURE_WRAP_S,
+		GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D,
+		GL_TEXTURE_WRAP_T,
+		GL_REPEAT);
+
 }
 
 // loadControlPoints() /////////////////////////////////////////////////////////
@@ -429,6 +454,61 @@ void drawGrid() {
 	glEnable( GL_LIGHTING );
 }
 
+void drawCactus() {
+
+	glColor3f(0, 1.0, 0);
+
+	CSCI441::drawSolidCylinder(1.0, 1.0, 10.0, 20, 20);
+	glPushMatrix();
+	glTranslatef(0, 10.0, 0);
+	CSCI441::drawSolidSphere(1.0, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glRotatef(90, 1.0, 0, 0);
+	glTranslatef(0, 0, -6);
+	CSCI441::drawSolidCylinder(.5, .5, 4.0, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 6, 4);
+	CSCI441::drawSolidSphere(.5, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 6, 4);
+	CSCI441::drawSolidCylinder(.5, .5, 1.5, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 7.5, 4);
+	CSCI441::drawSolidSphere(.5, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glRotatef(90, 1.0, 0, 0);
+	glTranslatef(0, -4, -6);
+	CSCI441::drawSolidCylinder(.5, .5, 4.0, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 6, -4);
+	CSCI441::drawSolidSphere(.5, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 6, -4);
+	CSCI441::drawSolidCylinder(.5, .5, 2.5, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0, 8.5, -4);
+	CSCI441::drawSolidSphere(.5, 20, 20);
+	glPopMatrix();
+
+
+}
+
 void drawTopHalf(){ // Draws body, head (with eyes), and horns of character
 	// Draws body (torso)
 	glColor3ub(82, 84, 105);
@@ -649,29 +729,36 @@ void renderScene(void)  {
 	//glCallList(terrainDL);
 	drawCharacter();
 	drawLamppost();
-	
-
-	// draws surface control points
-	glColor3ub(0, 255, 0);
-	for(unsigned int i = 0; i < controlPoints.size(); i++){
-		for (unsigned int j = 0; j < controlPoints[i].size(); j++) {
-			transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i][j].x, controlPoints[i][j].y, controlPoints[i][j].z));
-			glMultMatrixf(&transMtx[0][0]);
-			glLoadName(i);
-			CSCI441::drawSolidSphere(0.07, 20, 20);
-			glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
-		}
-	}
+	glPushMatrix();
+	glScalef(.5, .5, .5);
+	drawCactus();
+	glPopMatrix();
 	
 
 
-	// draws surface
+
+	glDisable(GL_LIGHTING);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, cloudTexHandle);
+
+	glColor3ub(255, 255, 255);
+	CSCI441::drawSolidCube(1000.0);
+
+	glDisable(GL_TEXTURE_2D);
+
+	glColor3ub(255, 255, 0);
+
+	glEnable(GL_LIGHTING);
+
+	glColor3ub(45, 163, 59);
+
 	glCallList(terrainDL);
-
-
-
-
 }
+
+
+
+
+
 
 //*************************************************************************************
 //
@@ -819,7 +906,7 @@ void setupScene() {
 //
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
-		fprintf(stderr, "[ERROR]: Control point CSV not passed into command line\n");
+		fprintf(stderr, "[ERROR]: Control point CSVs not passed into command line\nPass surface, then curve");
 		exit(EXIT_FAILURE);
 	}
 
@@ -829,6 +916,7 @@ int main(int argc, char *argv[]) {
 	// GLFW sets up our OpenGL context so must be done first
 	GLFWwindow *window = setupGLFW();	// initialize all of the GLFW specific information releated to OpenGL and our window
 	setupOpenGL();										// initialize all of the OpenGL specific information
+	setupTextures();
 	setupScene();											// initialize objects in our scene
 
 	//  This is our draw loop - all rendering is done here.  We use a loop to keep the window open

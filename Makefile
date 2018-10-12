@@ -64,6 +64,8 @@ endif
 INCPATH += -I$(LAB_INC_PATH)
 LIBPATH += -L$(LAB_LIB_PATH)
 
+LIBS += -lSOIL
+
 #############################
 ## SETUP OpenGL & GLFW 
 #############################
