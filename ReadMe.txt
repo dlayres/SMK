@@ -37,4 +37,4 @@ object2Name,object2X,object2Z
 
 
 This assignment took about 11 hours.
-Fun rating: 6.5/10
+Fun rating: 4.5/10
