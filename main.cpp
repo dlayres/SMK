@@ -39,6 +39,8 @@
 #include "HeroBase.h"
 #include "Alex.h"
 #include "David.h"
+#include "Josh.h"
+#include "Sav.h"
 
 using namespace std;
 
@@ -86,6 +88,8 @@ vector<float> animateVals;							// vector to store a few different animation cy
 
 vector<vector<glm::vec3> > controlPoints; 			// control points for Bezier surface
 vector<glm::vec3> curveControlPoints;				// control points for Bezier curve
+vector<glm::vec3> cactusPoints;
+vector<glm::vec3> lampPoints;
 
 map<float, float> lookupTable;	
 
@@ -93,6 +97,7 @@ int tableResolution = 100;								// for smooth vehicle movement
 
 int surfaceRes = 50;
 float height = 0;
+int numObjects;
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
@@ -112,10 +117,14 @@ int currCam = ARCBALL_CAM;
 bool viewOverlay = false;
 int overlaySize = 150;
 
+void drawCactus();
 
 HeroBase* currHero;
-Alex alex(glm::vec3(5.0f, 0.0f, 10.0f));
-David david(glm::vec3(5.0f, 0.3f, 5.0f));
+///////////////////////////////////---------------------------------------------------------------------------------------------------------------
+Alex alex(glm::vec3(5.0f, 20.0f, 10.0f));
+David david(glm::vec3(5.0f, 20.3f, 5.0f));
+Josh josh(glm::vec3(-5.0f, 20.0f, -5.0f));
+Sav sav(glm::vec3(5.0f, 20.0f, 15.0f));
 
 //*************************************************************************************
 //
@@ -193,7 +202,7 @@ void setupTextures() {
 //	the global variable controlPoints
 //
 ////////////////////////////////////////////////////////////////////////////////
-bool loadSurfaceControlPoints( char* filename ) {
+bool loadPoints( char* filename ) {
 	ifstream inputFile(filename);
 
 	string numPointsString;
@@ -214,18 +223,12 @@ bool loadSurfaceControlPoints( char* filename ) {
 		controlPoints.push_back(newSurface);
 	}
 
-	return true;
-}
+	string numPointsString2;
+	int numPoints2;
+	getline(inputFile, numPointsString2);
+	sscanf(numPointsString2.c_str(), "%d", &numPoints2);
 
-bool loadCurveControlPoints(char* filename) {
-	ifstream inputFile(filename);
-
-	string numPointsString;
-	int numPoints;
-	getline(inputFile, numPointsString);
-	sscanf(numPointsString.c_str(), "%d", &numPoints);
-
-	for (int j = 0; j < numPoints; j++) {
+	for (int j = 0; j < numPoints2; j++) {
 		string x, y, z;
 		getline(inputFile, x, ',');
 		getline(inputFile, y, ',');
@@ -233,6 +236,27 @@ bool loadCurveControlPoints(char* filename) {
 		glm::vec3 controlPoint = glm::vec3(atof(x.c_str()), atof(y.c_str()), atof(z.c_str()));
 		curveControlPoints.push_back(controlPoint);
 	}
+
+	string numObjectsStr;
+	string objType;
+	string objx, objy;
+	getline(inputFile, numObjectsStr);
+	sscanf(numObjectsStr.c_str(), "%d", &numObjects);
+	cout << numObjects << endl;
+	for(int i = 0; i < numObjects; i++) {
+		getline(inputFile, objType, ',');
+		getline(inputFile, objx, ',');
+		getline(inputFile, objy);
+		if (objType == "cactus") {
+			glm::vec3 pnt(atof(objx.c_str()), atof(objy.c_str()), 0);
+			cactusPoints.push_back(pnt);
+		}
+		if (objType == "lamp") {
+			glm::vec3 pnt2(atof(objx.c_str()), atof(objy.c_str()), 0);
+			lampPoints.push_back(pnt2);
+		}
+	}
+
 
 	return true;
 }
@@ -582,7 +606,6 @@ void drawCactus() {
 	CSCI441::drawSolidSphere(.5, 20, 20);
 	glPopMatrix();
 
-
 }
 
 void drawTopHalf(){ // Draws body, head (with eyes), and horns of character
@@ -756,6 +779,10 @@ void drawVehicleParameterized() {
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
 
+void drawLandscape() {
+
+}
+
 // generateEnvironmentDL() /////////////////////////////////////////////////////
 //
 //  This function creates a display list with the code to draw a simple
@@ -812,9 +839,51 @@ void renderScene(void)  {
 	glCallList(environmentDL);
 	drawCharacter();
 	drawLamppost();
+
 	glPushMatrix();
 	glScalef(.5, .5, .5);
+	GLfloat matColor[4] = { 0.135,0.2225,0.1575 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColor);
 
+	GLfloat matColor1[4] = { 0.54,0.89,0.63 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColor1);
+
+	GLfloat matColor2[4] = { 0.316228,0.316228,0.316228 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColor2);
+	for (int i = 0; i < cactusPoints.size(); i++) {
+		glPushMatrix();
+		glTranslatef(cactusPoints[i].x, 30, cactusPoints[i].y);
+		drawCactus();
+		glPopMatrix();
+	}
+	glPopMatrix();
+
+	for (int i = 0; i < lampPoints.size(); i++) {
+		glPushMatrix();
+		glTranslatef(lampPoints[i].x, 30, lampPoints[i].y);
+		drawLamppost();
+		glPopMatrix();
+	}
+
+	// Draw all the heros
+	//glPushMatrix();
+	//glTranslatef(0, 10, 0);
+	GLfloat matColorD[4] = { 0.05375,0.05,0.06625 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.18275,0.17,	0.22525 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.332741, 0.328634, 0.346435 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
+	alex.draw(false);
+	david.draw(false);
+	josh.draw(false);
+	sav.draw(false);
+	//glPopMatrix();make
+
+	/*
 	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
 
@@ -825,19 +894,12 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
-
-	drawCactus();
-	glPopMatrix();
-	// Draw all the heros
-	alex.draw(false);
-	david.draw(false);
-	
 	
 	glColor3ub(255, 255, 0);
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
-
+	*/
 
 	//drawVehicleParameterized();
 	//drawVehicleNotParameterized();
@@ -1025,14 +1087,17 @@ void setupScene() {
 //		Really you should know what this is by now.  We will make use of the parameters later
 //
 int main(int argc, char *argv[]) {
+	/*
 	if (argc != 3) {
 		fprintf(stderr, "[ERROR]: Control point CSVs not passed into command line\nPass surface, then curve");
 		exit(EXIT_FAILURE);
 	}
+	*/
 
+	loadPoints(argv[1]);
 
-	loadSurfaceControlPoints(argv[1]);
-	loadCurveControlPoints(argv[2]);
+	//loadSurfaceControlPoints(argv[1]);
+	//loadCurveControlPoints(argv[2]);
 
 	currHero = &david;
 
