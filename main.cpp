@@ -270,20 +270,16 @@ void generateLookupTable() {
 
 float getParameterizedt(float pos) {
 	float tAvg = pos / (((controlPoints.size() - 1) / 3));
-	cout << tAvg << endl;
 	map<float, float>::iterator low;
 	map<float, float>::iterator high;
 
-	cout << lookupTable.rbegin()->first << endl;
 	tAvg = tAvg * lookupTable.rbegin()->first;
-	cout << tAvg << endl;
 
 	float t = pos - floor(pos);
 	low = lookupTable.lower_bound(tAvg);
 	high = lookupTable.upper_bound(tAvg);
 
 	float value = low->second * (1 - t) + high->second * t;
-	cout << value << endl;
 	return low->second * (1 - t) + high->second * t;
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
@@ -860,18 +856,33 @@ void setupOpenGL() {
 	//		surface removal.  We will discuss this more very soon.
 	glEnable(GL_DEPTH_TEST);
 
+	glFrontFace(GL_CCW);              // denote front faces specified by counter-clockwise winding order
+
+	glShadeModel(GL_FLAT);            // use flat shading
+
+	GLfloat lightAmbCol[4] = { 0, 0, 0, 1 };
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lightAmbCol);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
+
 	//******************************************************************
 	// this is some code to enable a default light for the scene;
 	// feel free to play around with this, but we won't talk about
 	// lighting in OpenGL for another couple of weeks yet.
-	float lightCol[4] = { 1, 1, 1, 1 };
-	float ambientCol[4] = { 0.0, 0.0, 0.0, .5 };
-	float lPosition[4] = { 10, 10, 10, 1 };
-	glLightfv(GL_LIGHT0, GL_POSITION, lPosition);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightCol);
+	glEnable(GL_LIGHTING);            // we are now using lighting
+	glEnable(GL_LIGHT0);              // and turn on Light 0 please (and thank you)
+	float diffuseCol[4] = { 0.1, 0.2, 0.2, 1.0 };
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseCol);
+	float ambientCol[4] = { 0.0, 0.0, 0.0, 1.0 };
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientCol);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
+
+	glEnable(GL_NORMALIZE);           // make sure our normals stay normal after transformations
+
+	float diffuseCol2[4] = { 1.0, 0.8, 0.8, 1.0 };
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseCol2);
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 12);
+	glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, 100);
+	glEnable(GL_LIGHT1);
 
 	// tell OpenGL not to use the material system; just use whatever we
 	// pass with glColor*()
@@ -884,7 +895,6 @@ void setupOpenGL() {
 	// if your object has a blocky surface, you probably want to disable this.
 	glShadeModel(GL_SMOOTH);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
 }
 
 //
