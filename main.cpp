@@ -288,7 +288,7 @@ float calcHeight(float x, float y) {
 
 
 
-	cout << "x: " << x << "y: " << y << endl;
+	//cout << "x: " << x << "y: " << y << endl;
 	
 	while (x > 100) {
 		x = x - 100;
@@ -337,25 +337,6 @@ float calcHeight(float x, float y) {
 glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t ) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
 
-	
-	
-	/*stringstream iss;
-	iss << round(point.x);
-	string x = iss.str();
-	stringstream iss2;
-	iss2 << round(abs(point.z));
-	string y = iss2.str();
-	string both = x + " " + y;
-	glm::vec3 temp(point.x, point.z, 0);
-	*/
-	
-	//cout << both << endl;
-	//float z = point.y;
-	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
-	//totalPoints[both] = z;
-
-	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	//if(find(std::begin(a), std::end(a), x) != std::end(a))
 	pair<float, float> coords(point.x, point.z);
 	surfacePoints[coords] = point.y;
 
@@ -364,36 +345,10 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 glm::vec3 evaluateBezierCurve2(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
 
-
-	/*stringstream iss;
-	iss << round(point.x);
-	string x = iss.str();
-	stringstream iss2;
-	iss2 << round(abs(point.z));
-	string y = iss2.str();
-	string both = x + " " + y;
-	glm::vec3 temp(point.x, point.z, 0);
-	*/
-	//pair<float, float> temp(round(point.x), abs(round(point.z)));
-	//cout << temp.first << " " << temp.second << " " << point.y << endl;
-	//totalPoints[temp] = point.y;
-
-	//cout << both << endl;
-	//float z = point.y;
-	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
-	//totalPoints[both] = z;
-
-	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	//if(find(std::begin(a), std::end(a), x) != std::end(a))
-
-
-
 	pair<float, float> coords(point.x, point.z);
 	surfacePoints[coords] = point.y;
 
-
 	return point;
-
 }
 
 // renderBezierCurve() //////////////////////////////////////////////////////////
@@ -423,16 +378,6 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 			glVertex3f(nextPoint4.x, nextPoint4.y, nextPoint4.z);
 		glEnd();
 
-		//pair<float, float> temp(round(point.x), abs(round(point.z)));
-		/*
-		totalPoints[pair<float, float>(nextPoint1.x, nextPoint1.z)] = nextPoint1.y;
-		totalPoints[pair<float, float>(nextPoint2.x, nextPoint2.z)] = nextPoint2.y;
-		totalPoints[pair<float, float>(nextPoint3.x, nextPoint3.z)] = nextPoint3.y;
-		totalPoints[pair<float, float>(nextPoint4.x, nextPoint4.z)] = nextPoint4.y;
-		pair<float, float> temp(nextPoint4.x, nextPoint4.z);
-		*/
-		//cout << totalPoints[temp] << endl;
-
 		t += (1.0/resolution);
 	}
 }
@@ -456,18 +401,18 @@ void generateLookupTable() {
 			glm::vec3 point = evaluateBezierCurve(curveControlPoints[i], curveControlPoints[i + 1], curveControlPoints[i + 2], curveControlPoints[i + 3], j / tableResolution);
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
 			float t = i / 3 + j / tableResolution;
+			cout << distance << " " << t << endl;
 			lookupTable.insert(pair<float, float>(distance, t));
 		}
 	}
 }
 
 float getParameterizedt(float pos) {
-	float tAvg = pos / (((controlPoints.size() - 1) / 3));
+	float tAvg = pos / ((floor(curveControlPoints.size()) / 3));
 	map<float, float>::iterator low;
 	map<float, float>::iterator high;
 
 	tAvg = tAvg * lookupTable.rbegin()->first;
-
 	float t = pos - floor(pos);
 	low = lookupTable.lower_bound(tAvg);
 	high = lookupTable.upper_bound(tAvg);
@@ -583,8 +528,10 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 			currHero = &david;
 		}
 		else if(key == GLFW_KEY_S) {
+			currHero = &sav;
 		}
 		else if(key == GLFW_KEY_J) {
+			currHero = &josh;
 		}
 	}
 }
@@ -698,6 +645,17 @@ void drawGrid() {
 }
 
 void drawCactus() {
+
+	GLfloat matColorC[4] = { 0.0, 0.05, 0.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorC);
+
+	GLfloat matColorC1[4] = { 0.2, 0.3, 0.2 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorC1);
+
+	GLfloat matColorC2[4] = { 0.04, 0.6, 0.04, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorC2);
+
+
 
 	glColor3f(0, 1.0, 0);
 
@@ -855,6 +813,15 @@ void drawCharacter(){ // Draws character from upper half and two legs
 }
 
 void drawLamppost(){ // Draws a single lamppost
+	GLfloat matColorL[4] = { 0.0, 0.0, 0.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorL);
+
+	GLfloat matColorL1[4] = { 0.01, 0.01, 0.01 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorL1);
+
+	GLfloat matColorL2[4] = { 0.5, 0.5, 0.5, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorL2);
+
 	transMtx = glm::translate(glm::mat4(), glm::vec3(10, 0, 10)); // Moves lamppost to (10, 0, 10);
 	glMultMatrixf(&transMtx[0][0]);
 
@@ -892,22 +859,22 @@ void drawLamppost(){ // Draws a single lamppost
 	glMultMatrixf(&transMtx[0][0]);
 }
 
-void drawVehicleNotParameterized() {
+void drawVehicleNotParameterized(HeroBase* racer) {
 
 	//move to location on bezier curve
 	int p0 = floor(racerPos) * 3;
 	float t = racerPos - floor(racerPos);
-	cout << t << endl;
+	//cout << t << endl;
 	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
-	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-	CSCI441::drawSolidSphere(0.07, 20, 20);
+	racer->draw(true);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
-
-void drawVehicleParameterized() {
+//
+void drawVehicleParameterized(HeroBase* racer) {
 
 
 	//lerp
@@ -915,12 +882,12 @@ void drawVehicleParameterized() {
 	//move to location on bezier curve
 	int p0 = floor(t) * 3;
 	t = t - floor(t);
-	cout << t << endl;
+	//cout << t << endl;
 	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
-	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-	CSCI441::drawSolidSphere(0.1, 20, 20);
+	racer->draw(true);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -964,9 +931,9 @@ void generateEnvironmentDL() {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	glMaterialf(GL_FRONT, GL_SHININESS, .0 * 128);
-	//for (unsigned int i = 0; i < controlPoints.size(); i++) {
-	//	renderBezierSurface(controlPoints[i], surfaceRes);
-	//}
+	for (unsigned int i = 0; i < controlPoints.size(); i++) {
+		renderBezierSurface(controlPoints[i], surfaceRes);
+	}
 
 	glEndList();
 
@@ -980,7 +947,7 @@ void generateEnvironmentDL() {
 void renderScene(void)  {
 	// update vehicle position
 	racerPos += .01;
-	if (racerPos > ceil((curveControlPoints.size()) / 3))
+	if (racerPos > floor((curveControlPoints.size()) / 3))
 		racerPos = 0;
 
 	glCallList(environmentDL);
@@ -1015,44 +982,63 @@ void renderScene(void)  {
 	// Draw all the heros
 	//glPushMatrix();
 	//glTranslatef(0, 10, 0);
-	GLfloat matColorD[4] = { 0.05375,0.05,0.06625 };
-	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
-
-	GLfloat matColorD1[4] = { 0.18275,0.17,	0.22525 };
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
-
-	GLfloat matColorD2[4] = { 0.332741, 0.328634, 0.346435 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	drawBezierCurve();
 
-	alex.draw(false);
-	david.draw(false);
-	josh.draw(false);
-	sav.draw(false);
-	//glPopMatrix();make
+	GLfloat matColorA[4] = { 0.19225, 0.19225, 0.19225 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorA);
 
-	/*
-	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
-	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+	GLfloat matColorA1[4] = { 0.40754, 0.40754, 0.40754 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorA1);
 
-	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+	GLfloat matColorA2[4] = { 0.408273, 0.408273, 0.408273, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorA2);
 
-	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+	drawVehicleParameterized(&alex);
 
-	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
+	GLfloat matColorJ[4] = { 0.05, 0.05, 0.05 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorJ);
+
+	GLfloat matColorJ1[4] = { 0.5, 0.5, 0.5 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorJ1);
+
+	GLfloat matColorJ2[4] = { 0.7, 0.7, 0.7, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorJ2);
+
+	drawVehicleNotParameterized(&josh);
+
+	GLfloat matColorS[4] = { 0.1745, 0.01175, 0.01175 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorS);
+
+	GLfloat matColorS1[4] = { 0.41424, 0.04136, 0.04136 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorS1);
+
+	GLfloat matColorS2[4] = { 0.427811, 0.326959, 0.326959, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorS2);
+
+	drawVehicleParameterized(&sav);
+
+	drawBezierCurve();
+
+
+
 
 
 
 	
-=======
 
 	drawCactus();
 	glPopMatrix();
 	// Draw all the heros
-	alex.draw(false);
+	GLfloat matColorD[4] = { 0.1, 0.18725, 0.1745 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.39, 0.74151, 0.69102 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.297254, 0.30829, 0.306678, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
 	david.draw(false);
 
 
@@ -1061,10 +1047,10 @@ void renderScene(void)  {
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
-	*/
+	
 
-	drawVehicleParameterized();
-	drawVehicleNotParameterized();
+	//drawVehicleParameterized();
+	//drawVehicleNotParameterized();
 
 
 
@@ -1415,7 +1401,7 @@ int main(int argc, char *argv[]) {
 					it++;
 				}
 				currHero->pos.y = newY;
-				cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant << endl;
+				//cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant << endl;
 
 				recomputeOrientation();
 				checkBounds();
@@ -1440,7 +1426,7 @@ int main(int argc, char *argv[]) {
 					it++;
 				}
 				currHero->pos.y = newY ;
-				cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant<< endl;
+				//cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant<< endl;
 				recomputeOrientation();
 				checkBounds();
 
