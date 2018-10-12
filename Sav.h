@@ -9,7 +9,7 @@ private:
 	float inc;
 	bool moving;
 
-	void drawWheels() {
+	void drawWheels(bool animate) {
 		//draw and place wheels
 		glColor3f(0.73, 0.73, 0.73);
 
@@ -152,7 +152,7 @@ public:
 			}
 		}
 
-		drawWheels();
+		drawWheels(animate);
 
 		drawHandleBars();
 

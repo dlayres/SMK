@@ -337,25 +337,6 @@ float calcHeight(float x, float y) {
 glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t ) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
 
-	
-	
-	/*stringstream iss;
-	iss << round(point.x);
-	string x = iss.str();
-	stringstream iss2;
-	iss2 << round(abs(point.z));
-	string y = iss2.str();
-	string both = x + " " + y;
-	glm::vec3 temp(point.x, point.z, 0);
-	*/
-	
-	//cout << both << endl;
-	//float z = point.y;
-	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
-	//totalPoints[both] = z;
-
-	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	//if(find(std::begin(a), std::end(a), x) != std::end(a))
 	pair<float, float> coords(point.x, point.z);
 	surfacePoints[coords] = point.y;
 
@@ -364,36 +345,10 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 glm::vec3 evaluateBezierCurve2(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
 
-
-	/*stringstream iss;
-	iss << round(point.x);
-	string x = iss.str();
-	stringstream iss2;
-	iss2 << round(abs(point.z));
-	string y = iss2.str();
-	string both = x + " " + y;
-	glm::vec3 temp(point.x, point.z, 0);
-	*/
-	//pair<float, float> temp(round(point.x), abs(round(point.z)));
-	//cout << temp.first << " " << temp.second << " " << point.y << endl;
-	//totalPoints[temp] = point.y;
-
-	//cout << both << endl;
-	//float z = point.y;
-	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
-	//totalPoints[both] = z;
-
-	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	//if(find(std::begin(a), std::end(a), x) != std::end(a))
-
-
-
 	pair<float, float> coords(point.x, point.z);
 	surfacePoints[coords] = point.y;
 
-
 	return point;
-
 }
 
 // renderBezierCurve() //////////////////////////////////////////////////////////
@@ -422,16 +377,6 @@ void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 			glVertex3f(nextPoint3.x, nextPoint3.y, nextPoint3.z);
 			glVertex3f(nextPoint4.x, nextPoint4.y, nextPoint4.z);
 		glEnd();
-
-		//pair<float, float> temp(round(point.x), abs(round(point.z)));
-		/*
-		totalPoints[pair<float, float>(nextPoint1.x, nextPoint1.z)] = nextPoint1.y;
-		totalPoints[pair<float, float>(nextPoint2.x, nextPoint2.z)] = nextPoint2.y;
-		totalPoints[pair<float, float>(nextPoint3.x, nextPoint3.z)] = nextPoint3.y;
-		totalPoints[pair<float, float>(nextPoint4.x, nextPoint4.z)] = nextPoint4.y;
-		pair<float, float> temp(nextPoint4.x, nextPoint4.z);
-		*/
-		//cout << totalPoints[temp] << endl;
 
 		t += (1.0/resolution);
 	}
@@ -583,8 +528,10 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 			currHero = &david;
 		}
 		else if(key == GLFW_KEY_S) {
+			currHero = &sav;
 		}
 		else if(key == GLFW_KEY_J) {
+			currHero = &josh;
 		}
 	}
 }
@@ -892,22 +839,22 @@ void drawLamppost(){ // Draws a single lamppost
 	glMultMatrixf(&transMtx[0][0]);
 }
 
-void drawVehicleNotParameterized() {
+void drawVehicleNotParameterized(HeroBase* racer) {
 
 	//move to location on bezier curve
 	int p0 = floor(racerPos) * 3;
 	float t = racerPos - floor(racerPos);
 	cout << t << endl;
 	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
-	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-	CSCI441::drawSolidSphere(0.07, 20, 20);
+	racer->draw(true);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
 
-void drawVehicleParameterized() {
+void drawVehicleParameterized(HeroBase* racer) {
 
 
 	//lerp
@@ -917,10 +864,10 @@ void drawVehicleParameterized() {
 	t = t - floor(t);
 	cout << t << endl;
 	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
-	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
+	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-	CSCI441::drawSolidSphere(0.1, 20, 20);
+	racer->draw(true);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -1026,12 +973,16 @@ void renderScene(void)  {
 
 	drawBezierCurve();
 
+	drawVehicleParameterized(&alex);
+	drawVehicleNotParameterized(&josh);
+	drawVehicleParameterized(&sav);
+	/*
 	alex.draw(false);
 	david.draw(false);
 	josh.draw(false);
 	sav.draw(false);
 	//glPopMatrix();make
-
+	*/
 	/*
 	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
@@ -1063,8 +1014,8 @@ void renderScene(void)  {
 	}
 	*/
 
-	drawVehicleParameterized();
-	drawVehicleNotParameterized();
+	//drawVehicleParameterized();
+	//drawVehicleNotParameterized();
 
 
 
