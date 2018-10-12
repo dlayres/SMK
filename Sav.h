@@ -6,8 +6,8 @@
 class Sav : public HeroBase {
 
 private:
-	float inc = .5;
-	bool moving = false;
+	float inc;
+	bool moving;
 
 	void drawWheels() {
 		//draw and place wheels
@@ -134,7 +134,8 @@ private:
 	
 public:
 	Sav(glm::vec3 pos) : HeroBase(pos) {
-		
+		inc = .5;
+		moving = false;
 	}
 
 	void draw(bool animate) { 				  
