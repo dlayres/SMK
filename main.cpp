@@ -285,24 +285,35 @@ float round(float var){
 
 float calcHeight(float x, float y) {
 
+	float shortestDist = 100000.0;
+	float newY = 0.0;
+	map<pair<float, float>, float>::iterator it = surfacePoints.begin();
 
+	while (it != surfacePoints.end()) {
+		if (getDist(it->first.first, it->first.second, x , y) < shortestDist) {
+			shortestDist = getDist(it->first.first, it->first.second, x, y);
+			newY = it->second;
+		}
+		it++;
+	}
+	return newY;
 
 
 	//cout << "x: " << x << "y: " << y << endl;
 	
-	while (x > 100) {
-		x = x - 100;
-	}
-	while (y > 100) {
-		y =y - 100;
-	}
-	while (x < 0) {
-		x = x + 100;
-	}
-	while (y < 0) {
-		y = y + 100;
-	}
-	pair<float, float> temp(round(x), round(y));
+	//while (x > 100) {
+	//	x = x - 100;
+	//}
+	//while (y > 100) {
+	//	y =y - 100;
+	//}
+	//while (x < 0) {
+	//	x = x + 100;
+//	}
+//	while (y < 0) {
+//		y = y + 100;
+//	}
+//	pair<float, float> temp(round(x), round(y));
 	//stringstream iss;
 	//iss << x;
 	//string x_t = iss.str();
@@ -314,9 +325,9 @@ float calcHeight(float x, float y) {
 
 	//if (totalPoints.find(temp) == totalPoints.end()) {
 		//cout << "key not found" << endl;
-		map<pair<float, float>, float>::iterator lower = totalPoints.lower_bound(temp);
-		map<pair<float, float>, float>::iterator upper = totalPoints.upper_bound(temp);
-		return upper->second;
+		//map<pair<float, float>, float>::iterator lower = totalPoints.lower_bound(temp);
+	//	map<pair<float, float>, float>::iterator upper = totalPoints.upper_bound(temp);
+	//	return upper->second;
 		//return (upper->second + lower->second) / 2;
 		//return ( (upper->second * (temp.first / upper->first.first) * (temp.second / upper->first.second) / upper->first.first) + (lower->second * (upper->first.first - (temp.first / upper->first.first)) * (upper->first.second - upper->first.second / temp.second)) / upper->first.second);
 	//}
@@ -324,7 +335,7 @@ float calcHeight(float x, float y) {
 	//cout << both << endl;
 	//cout << totalPoints[both] << endl;
 	//cout << totalPoints[both] << endl;
-	return totalPoints[temp];
+	//return totalPoints[temp];
 }
 
 
@@ -344,9 +355,6 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 }
 glm::vec3 evaluateBezierCurve2(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
-
-	pair<float, float> coords(point.x, point.z);
-	surfacePoints[coords] = point.y;
 
 	return point;
 }
@@ -385,7 +393,7 @@ void renderBezierCurve1(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, 
 	glDisable(GL_LIGHTING);
 	glBegin(GL_LINE_STRIP);
 	for (float i = 0; i < resolution; i += 1) {
-		glm::vec3 point = evaluateBezierCurve(p0, p1, p2, p3, i / resolution);
+		glm::vec3 point = evaluateBezierCurve2(p0, p1, p2, p3, i / resolution);
 		glVertex3f(point.x, point.y, point.z);
 	}
 	glEnd();
@@ -398,7 +406,7 @@ void generateLookupTable() {
 	glm::vec3 lastPoint = curveControlPoints[0];
 	for (unsigned int i = 0; i + 1 < curveControlPoints.size(); i += 3) {
 		for (float j = 0; j < tableResolution; j += 1) {
-			glm::vec3 point = evaluateBezierCurve(curveControlPoints[i], curveControlPoints[i + 1], curveControlPoints[i + 2], curveControlPoints[i + 3], j / tableResolution);
+			glm::vec3 point = evaluateBezierCurve2(curveControlPoints[i], curveControlPoints[i + 1], curveControlPoints[i + 2], curveControlPoints[i + 3], j / tableResolution);
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
 			float t = i / 3 + j / tableResolution;
 			cout << distance << " " << t << endl;
@@ -659,7 +667,10 @@ void drawCactus() {
 
 	glColor3f(0, 1.0, 0);
 
-	CSCI441::drawSolidCylinder(1.0, 1.0, 10.0, 20, 20);
+	glPushMatrix();
+	glTranslatef(0, -10.0, 0);
+	CSCI441::drawSolidCylinder(1.0, 1.0, 20.0, 20, 20);
+	glPopMatrix();
 	glPushMatrix();
 	glTranslatef(0, 10.0, 0);
 	CSCI441::drawSolidSphere(1.0, 20, 20);
@@ -865,15 +876,30 @@ void drawVehicleNotParameterized(HeroBase* racer) {
 	int p0 = floor(racerPos) * 3;
 	float t = racerPos - floor(racerPos);
 	//cout << t << endl;
-	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
+
+	glm::vec3 loc = evaluateBezierCurve2(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
+	float t2 = racerPos + .01;
+	t2 = t2 - floor(t2);
+
+	//float yaw = glm::cross((evaluateBezierCurve2(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t2) - loc), racer->yaw) ;
+	racer->yaw = yaw;
+
+	//rotateMtx = glm::rotate(glm::mat4(), yaw, glm::vec3(0, 1, 0));
+	//glMultMatrixf(&rotateMtx[0][0]);
+
 	racer->draw(true);
 
+	//rotateMtx = glm::rotate(glm::mat4(), -yaw, glm::vec3(0, 1, 0));
+	//glMultMatrixf(&rotateMtx[0][0]);
+
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
+
+
 }
-//
+
 void drawVehicleParameterized(HeroBase* racer) {
 
 
@@ -883,13 +909,27 @@ void drawVehicleParameterized(HeroBase* racer) {
 	int p0 = floor(t) * 3;
 	t = t - floor(t);
 	//cout << t << endl;
-	glm::vec3 loc = evaluateBezierCurve(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
+	glm::vec3 loc = evaluateBezierCurve2(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t);
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, calcHeight(loc.x, loc.z), loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
+	float t2 = racerPos + .01;
+	t2 = t2 - floor(t2);
+	//glm::vec3 yaw = evaluateBezierCurve2(curveControlPoints.at(p0), curveControlPoints.at(p0 + 1), curveControlPoints.at(p0 + 2), curveControlPoints.at(p0 + 3), t2) - loc;
+	racer->yaw = yaw;
+
+	//rotateMtx = glm::rotate(glm::mat4(), yaw, glm::vec3(0, 1, 0));
+	//glMultMatrixf(&rotateMtx[0][0]);
+
 	racer->draw(true);
 
+	//rotateMtx = glm::rotate(glm::mat4(), -yaw, glm::vec3(0, 1, 0));
+	//glMultMatrixf(&rotateMtx[0][0]);
+
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
+
+
+
 }
 
 void drawBezierCurve() {
@@ -951,11 +991,9 @@ void renderScene(void)  {
 		racerPos = 0;
 
 	glCallList(environmentDL);
-	drawCharacter();
-	drawLamppost();
+	//drawCharacter();
+	//drawLamppost();
 
-	glPushMatrix();
-	glScalef(.5, .5, .5);
 	GLfloat matColor[4] = { 0.135,0.2225,0.1575 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColor);
 
@@ -966,15 +1004,15 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColor2);
 	for (int i = 0; i < cactusPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(cactusPoints[i].x, 30, cactusPoints[i].y);
+		glTranslatef(cactusPoints[i].x, calcHeight(cactusPoints[i].x, cactusPoints[i].y) + 10.0, cactusPoints[i].y);
+		glScalef(.5, .5, .5);
 		drawCactus();
 		glPopMatrix();
 	}
-	glPopMatrix();
 
 	for (int i = 0; i < lampPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(lampPoints[i].x, 30, lampPoints[i].y);
+		glTranslatef(lampPoints[i].x, calcHeight(lampPoints[i].x, lampPoints[i].y), lampPoints[i].y);
 		drawLamppost();
 		glPopMatrix();
 	}
@@ -1017,6 +1055,19 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorS2);
 
 	drawVehicleParameterized(&sav);
+
+	//david.draw(false);
+	/*
+	alex.draw(false);
+	david.draw(false);
+	josh.draw(false);
+	sav.draw(false);
+	//glPopMatrix();make
+	*/
+	
+	//GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
+	//glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
 
 	drawBezierCurve();
 
@@ -1186,7 +1237,7 @@ void setupOpenGL() {
 //  void setupScene()
 //
 //      Used to setup everything scene related.  Give our camera an
-//	initial starting point and generate the display list for our city
+//	al starting point and generate the display list for our city
 //
 void setupScene() {
 	// Initialize animateVals vector to store different animation settings
@@ -1210,6 +1261,7 @@ void setupScene() {
 	animateVals.push_back(-0.2);
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
+
 
 	// give the camera a scenic starting point.
 	camPos.x = 5;
@@ -1383,24 +1435,13 @@ int main(int argc, char *argv[]) {
 			checkBounds();
 */
 		// Whatever hero we want to freely walk around
-		if(currHero == &david && currCam == ARCBALL_CAM) {
+		if(currCam == ARCBALL_CAM) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
 				currHero->yaw += turnDirection * turnSpeed;
 
-				float shortestDist = 100000.0;
-				float newY = 0.0;
-				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
-
-				while(it != surfacePoints.end()){
-					if(getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z) < shortestDist){
-						shortestDist = getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z);
-						newY = it->second;
-					}
-					it++;
-				}
-				currHero->pos.y = newY;
+				currHero->pos.y = calcHeight(currHero->pos.x, currHero->pos.z);
 				//cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant << endl;
 
 				recomputeOrientation();
@@ -1412,8 +1453,9 @@ int main(int argc, char *argv[]) {
 			}
 			else if(walking){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+//
 
-
+				/*
 				float shortestDist = 100000.0;
 				float newY = 0.0;
 				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
@@ -1424,8 +1466,8 @@ int main(int argc, char *argv[]) {
 						newY = it->second;
 					}
 					it++;
-				}
-				currHero->pos.y = newY ;
+				} */
+				currHero->pos.y = calcHeight(currHero->pos.x, currHero->pos.z);
 				//cout << currHero->pos.x / scaleConstant << " " << currHero->pos.y / heightScaleConstant << " " << currHero->pos.z / scaleConstant<< endl;
 				recomputeOrientation();
 				checkBounds();

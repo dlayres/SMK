@@ -94,7 +94,9 @@ public:
 				// Translate so feet are on the ground.
 				glm::mat4 translate = glm::translate(glm::mat4(), glm::vec3(0.0f, legLength, 0.0f));
 				glMultMatrixf(&translate[0][0]);
-
+					
+				glPushMatrix();
+				glTranslatef(0, -10.0, 0);
 					glColor3f(0.0f, 1.0f, 0.0f);
 					drawHead();
 
@@ -103,7 +105,7 @@ public:
 
 					glColor3f(1.0f, 0.0f, 1.0f);
 					drawArms();
-
+				glPopMatrix();
 					glColor3f(0.0f, 0.0f, 1.0f);
 					float walkingAngle = animate ? (float)sin(glfwGetTime() * 5.0f) : 0.0f;
 					glm::mat4 walkingRot = glm::rotate(glm::mat4(), walkingAngle, glm::vec3(0.0f, 1.0f, 0.0f));
