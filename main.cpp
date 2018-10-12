@@ -62,7 +62,7 @@ bool cameraRight = false;
 glm::vec3 heroPos;									// position of the hero
 float heroAngle;									// direction the hero is facing in radians (0 is along the positive Z axis)
 glm::vec3 heroDir;									// vector for the direction the hero is facing
-float walkSpeed = 0.05f;							// speed the hero is walking as a factor of a unit vector
+float walkSpeed = 0.1f;							// speed the hero is walking as a factor of a unit vector
 float turnSpeed = 0.05f;							// speed the hero is turning
 
 float racerPos = 0;									// t value for racing heroes
@@ -83,7 +83,7 @@ map<float, float> lookupTable;
 
 int tableResolution = 100;								// for smooth vehicle movement
 
-int surfaceRes = 5;
+int surfaceRes = 50;
 float height = 0;
 
 glm::mat4 transMtx; 								// global variables used for transformations
@@ -182,7 +182,7 @@ bool loadSurfaceControlPoints( char* filename ) {
 			getline(inputFile, x, ',');
 			getline(inputFile, y, ',');
 			getline(inputFile, z);
-			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()), atof(y.c_str()), atof(z.c_str()));
+			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * 10, atof(y.c_str()) * 4, atof(z.c_str()) * 10);
 			newSurface.push_back(controlPoint);
 		}
 		controlPoints.push_back(newSurface);
@@ -264,7 +264,6 @@ void generateLookupTable() {
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
 			float t = i / 3 + j / tableResolution;
 			lookupTable.insert(pair<float, float>(distance, t));
-			cout << distance << " " << lookupTable[distance] << endl;
 		}
 	}
 }
@@ -713,17 +712,26 @@ void generateEnvironmentDL() {
 
 
 	terrainDL = glGenLists(1);
+
+
+
 	glNewList(terrainDL, GL_COMPILE);
-		for (int x = -40; x <= 40; x += 10) {
-			for (int z = -40; z <= 40; z += 10) {
-				transMtx = glm::translate(glm::mat4(), glm::vec3(x, 0, z));
-				glMultMatrixf(&transMtx[0][0]);
-				for (unsigned int i = 0; i < controlPoints.size(); i++) {
-					renderBezierSurface(controlPoints[i], surfaceRes);
-				}
-				glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
-			}
-		}
+	transMtx = glm::translate(glm::mat4(), glm::vec3(-50, 0, 50));
+	glMultMatrixf(&transMtx[0][0]);
+	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
+	glMaterialf(GL_FRONT, GL_SHININESS, .0 * 128);
+	for (unsigned int i = 0; i < controlPoints.size(); i++) {
+		renderBezierSurface(controlPoints[i], surfaceRes);
+	}
+	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	glEndList();
 
 }
@@ -744,6 +752,18 @@ void renderScene(void)  {
 	drawLamppost();
 	glPushMatrix();
 	glScalef(.5, .5, .5);
+
+	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
+	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
+
 	drawCactus();
 	glPopMatrix();
 	
@@ -845,7 +865,7 @@ void setupOpenGL() {
 	// feel free to play around with this, but we won't talk about
 	// lighting in OpenGL for another couple of weeks yet.
 	float lightCol[4] = { 1, 1, 1, 1 };
-	float ambientCol[4] = { 0.0, 0.0, 0.0, 1.0 };
+	float ambientCol[4] = { 0.0, 0.0, 0.0, .5 };
 	float lPosition[4] = { 10, 10, 10, 1 };
 	glLightfv(GL_LIGHT0, GL_POSITION, lPosition);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightCol);
