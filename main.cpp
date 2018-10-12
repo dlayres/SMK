@@ -387,8 +387,17 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 		if(currCam == FREE_CAM) {
 			float mdx = x - mousePos.x;
 			float mdy = y - mousePos.y;
-			yaw += mdx * 0.02f;
-			pitch += mdy * 0.02f;
+
+			yaw += mdx * 0.01f;
+			pitch += mdy * 0.01f;
+
+			float maxAngle = M_PI / 2.0f - 0.01f;
+			if(pitch >= maxAngle) {
+				pitch = maxAngle;
+			}
+			if(pitch <= -maxAngle) {
+				pitch = -maxAngle;
+			}
 		}
 	}
 
@@ -795,9 +804,10 @@ int main(int argc, char *argv[]) {
 		if(currCam == ARCBALL_CAM) {
 			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
 		} else if (currCam == FREE_CAM) {
-			freeCamDir.x = cos(yaw);
+			freeCamDir.x = cos(pitch) * cos(yaw);
 			freeCamDir.y = sin(pitch);
-			freeCamDir.z = sin(yaw);
+			freeCamDir.z = cos(pitch) * sin(yaw);
+
 			freeCamDir = glm::normalize(freeCamDir);
 
 			if(walking) {
