@@ -35,6 +35,10 @@
 #include <iostream>
 #include <map>
 
+#include "HeroBase.h"
+#include "Alex.h"
+#include "David.h"
+
 using namespace std;
 
 //*************************************************************************************
@@ -45,6 +49,11 @@ using namespace std;
 // set to initial values for convenience, but we need variables
 // for later on in case the window gets resized.
 int windowWidth = 640, windowHeight = 480;
+
+const int ARCBALL_CAM = 0;
+const int FREE_CAM = 1;
+const int FIRST_PERSON_CAM = 2;
+
 
 int leftMouseButton;    	 						// status of the mouse button
 glm::vec2 mousePos;			              		  	// last known X and Y of the mouse
@@ -92,14 +101,16 @@ glm::mat4 scaleMtx;
 GLuint environmentDL;
 GLuint terrainDL;
 
-bool arcballCam = true;
-bool freeCam = false;
-bool firstPersonCam = false;
-
 // For free cam
 glm::vec3 freeCamPos, freeCamDir;
 float yaw = 0.0f;
 float pitch = 0.0f;
+
+int currCam = ARCBALL_CAM;
+
+HeroBase* currHero;
+Alex alex(glm::vec3(5.0f, 0.0f, 10.0f));
+David david(glm::vec3(5.0f, 0.3f, 5.0f));
 
 //*************************************************************************************
 //
@@ -120,8 +131,12 @@ float getRand() { return rand() / (float)RAND_MAX; }
 //
 ////////////////////////////////////////////////////////////////////////////////
 void recomputeOrientation() {
-	heroDir = glm::vec3(sin(heroAngle), 0, cos(heroAngle));
-	camPos = glm::vec3(camDistance * sin(cameraTheta) * sin(cameraPhi), -camDistance * cos(cameraPhi), -camDistance * cos(cameraTheta) * sin(cameraPhi)) + heroPos;
+	float camDistance = currHero->camDistance;
+	float cameraTheta = currHero->cameraTheta;
+	float cameraPhi = currHero->cameraPhi;
+
+	currHero->direction = glm::vec3(sin(currHero->yaw), 0, cos(currHero->yaw));
+	currHero->camPos = glm::vec3(camDistance * sin(cameraTheta) * sin(cameraPhi), -camDistance * cos(cameraPhi), -camDistance * cos(cameraTheta) * sin(cameraPhi)) + currHero->pos;
 }
 
 // checkBounds() ///////////////////////////////////////////////////////////////
@@ -130,7 +145,7 @@ void recomputeOrientation() {
 //  out of bounds of the map, and if it is, places the hero back on the map
 //
 ////////////////////////////////////////////////////////////////////////////////
-void checkBounds(){
+void checkBounds() {
 	if(heroPos.x < -50){
 		heroPos.x = -50;
 	}
@@ -313,19 +328,13 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 				}
 				break;
 			case GLFW_KEY_1:
-				arcballCam = !arcballCam;
-				freeCam = false;
-				firstPersonCam = false;
+				currCam = ARCBALL_CAM;
 				break;
 			case GLFW_KEY_2:
-				arcballCam = false;
-				freeCam = !freeCam;
-				firstPersonCam = false;
+				currCam = FREE_CAM;
 				break;
 			case GLFW_KEY_3:
-				arcballCam = false;
-				freeCam = false;
-				firstPersonCam = !firstPersonCam;
+				currCam = FIRST_PERSON_CAM;
 				break;
 		}
 	}
@@ -337,6 +346,19 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 		cameraOut = false;
 		cameraLeft = false;
 		cameraRight = false;
+	}
+
+	if(mods == GLFW_MOD_CONTROL && action == GLFW_PRESS) {
+		if(key == GLFW_KEY_A) {
+			currHero = &alex;
+		}
+		else if(key == GLFW_KEY_D) {
+			currHero = &david;
+		}
+		else if(key == GLFW_KEY_S) {
+		}
+		else if(key == GLFW_KEY_J) {
+		}
 	}
 }
 
@@ -351,18 +373,18 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 ////////////////////////////////////////////////////////////////////////////////
 static void cursor_callback( GLFWwindow *window, double x, double y ) {
 	if( leftMouseButton == GLFW_PRESS ) {
-		cameraTheta -= (0.005 * (x - mousePos.x));
-		cameraPhi += (0.005 * (mousePos.y - y));
-		if(cameraPhi > M_PI - 0.01){
-			cameraPhi = M_PI - 0.01;
+		currHero->cameraTheta -= (0.005 * (x - mousePos.x));
+		currHero->cameraPhi += (0.005 * (mousePos.y - y));
+		
+		if(currHero->cameraPhi > M_PI - 0.01){
+			currHero->cameraPhi = M_PI - 0.01;
 		}
-		else if(cameraPhi < 0.01){
-			cameraPhi = 0.01;
+		else if(currHero->cameraPhi < 0.01){
+			currHero->cameraPhi = 0.01;
 		}
 		recomputeOrientation();     // update camera (x,y,z) based on (theta,phi)
 		
-
-		if(freeCam) {
+		if(currCam == FREE_CAM) {
 			float mdx = x - mousePos.x;
 			float mdy = y - mousePos.y;
 			yaw += mdx * 0.02f;
@@ -393,12 +415,12 @@ static void mouse_button_callback( GLFWwindow *window, int button, int action, i
 //
 ////////////////////////////////////////////////////////////////////////////////
 static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset){
-	camDistance -= yoffset;
-	if(camDistance < 1){
-		camDistance = 1;
+	currHero->camDistance -= yoffset;
+	if(currHero->camDistance < 1){
+		currHero->camDistance = 1;
 	}
-	else if(camDistance > 15){
-		camDistance = 15;
+	else if(currHero->camDistance > 15){
+		currHero->camDistance = 15;
 	}
 	recomputeOrientation();
 }
@@ -436,109 +458,6 @@ void drawGrid() {
      *	must turn lighting back on.
      */
 	glEnable( GL_LIGHTING );
-}
-
-void drawTopHalf(){ // Draws body, head (with eyes), and horns of character
-	// Draws body (torso)
-	glColor3ub(82, 84, 105);
-	CSCI441::drawSolidCone(.35, 1, 5, 20);
-
-	// Draws bottom of cloak
-	rotateMtx = glm::rotate(glm::mat4(), static_cast<float>(M_PI)/2.0f, glm::vec3(1, 0, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	CSCI441::drawSolidDisk(0, 0.35, 20, 20);
-	rotateMtx = glm::rotate(glm::mat4(), static_cast<float>(-M_PI)/2.0f, glm::vec3(1, 0, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-
-	// Draws head
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0, 0.95, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	glColor3ub(255, 255, 255);
-	CSCI441::drawSolidSphere(.3, 20, 20);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0, -0.95, 0));
-	glMultMatrixf(&transMtx[0][0]);
-
-	// Draws horns
-	scaleMtx = glm::scale(glm::mat4(), glm::vec3(1, 5, 1));
-	glMultMatrixf(&scaleMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.2, 0.225, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), -0.5f, glm::vec3(0, 0, 1));
-	glMultMatrixf(&rotateMtx[0][0]);
-	CSCI441::drawSolidCube(0.1);
-	rotateMtx = glm::rotate(glm::mat4(), 0.5f, glm::vec3(0, 0, 1));
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0.2, -0.225, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	scaleMtx = glm::scale(glm::mat4(), glm::vec3(1, 0.2, 1));
-	glMultMatrixf(&scaleMtx[0][0]);
-	scaleMtx = glm::scale(glm::mat4(), glm::vec3(1, 5, 1));
-	glMultMatrixf(&scaleMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0.2, 0.225, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), 0.5f, glm::vec3(0, 0, 1));
-	glMultMatrixf(&rotateMtx[0][0]);
-	CSCI441::drawSolidCube(0.1);
-	rotateMtx = glm::rotate(glm::mat4(), -0.5f, glm::vec3(0, 0, 1));
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.2, -0.225, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	scaleMtx = glm::scale(glm::mat4(), glm::vec3(1, 0.2, 1));
-	glMultMatrixf(&scaleMtx[0][0]);
-
-	// Draws eyes
-	glColor3ub(0, 0, 0);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.1, 0.9, 0.25));
-	glMultMatrixf(&transMtx[0][0]);
-	CSCI441::drawSolidSphere(0.05, 20, 20);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0.1, 0.2, -0.25));
-	glMultMatrixf(&transMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0.1, -0.2, 0.25));
-	glMultMatrixf(&transMtx[0][0]);
-	CSCI441::drawSolidSphere(0.05, 20, 20);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.1, -0.9, -0.25));
-	glMultMatrixf(&transMtx[0][0]);
-}
-
-void drawLeg(){ // Draws a single leg
-	glColor3ub(30, 30, 30);
-	CSCI441::drawSolidCylinder(0.08, 0.08, 0.3, 20, 20);
-	CSCI441::drawSolidSphere(0.08, 20, 20);
-}
-
-void drawCharacter() { // Draws character from upper half and two legs
-	transMtx = glm::translate(glm::mat4(), heroPos); // Checks the orientation of the hero and draws the upper half accordingly
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), heroAngle, glm::vec3(0, 1, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0, animationFrame / 20, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	drawTopHalf();
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0, -animationFrame / 20, 0));
-	glMultMatrixf(&transMtx[0][0]);
-
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.1, -0.22, 0)); // Draws both legs according to current animation frame
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), 1.2f*animationFrame, glm::vec3(1, 0, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	drawLeg();
-
-	rotateMtx = glm::rotate(glm::mat4(), -1.2f*animationFrame, glm::vec3(1, 0, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(0.2, 0, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), -1.2f*animationFrame, glm::vec3(1, 0, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	drawLeg();
-
-	rotateMtx = glm::rotate(glm::mat4(), 1.2f*animationFrame, glm::vec3(1, 0, 0)); // Undoes transformations
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-0.1, 0.22, 0));
-	glMultMatrixf(&transMtx[0][0]);
-	rotateMtx = glm::rotate(glm::mat4(), -heroAngle, glm::vec3(0, 1, 0));
-	glMultMatrixf(&rotateMtx[0][0]);
-	transMtx = glm::translate(glm::mat4(), -heroPos);
-	glMultMatrixf(&transMtx[0][0]);
 }
 
 void drawLamppost(){ // Draws a single lamppost
@@ -647,9 +566,13 @@ void renderScene(void)  {
 
 	glCallList(environmentDL);
 	//glCallList(terrainDL);
-	if(!firstPersonCam) drawCharacter();
+
 	drawLamppost();
 	
+	// Draw all the heros
+	alex.draw(false);
+	david.draw(false);
+
 	glColor3ub(0, 255, 0);
 	for(unsigned int i = 0; i < controlPoints.size(); i++){
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
@@ -802,17 +725,6 @@ void setupScene() {
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
 
-	// give the camera a scenic starting point.
-	camPos.x = 5;
-	camPos.y = 5;
-	camPos.z = 5;
-	cameraTheta = -M_PI / 3.0f;
-	cameraPhi = M_PI / 2.8f;
-
-	// place the hero in a default position
-	heroPos = glm::vec3(0, 0.3, 0);
-	heroAngle = 0.0f;
-	heroDir = glm::vec3(0, 0, 1);
 	recomputeOrientation();
 
 	freeCamDir.x = 0.0f;
@@ -841,6 +753,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "[ERROR]: Control point CSV not passed into command line\n");
 		exit(EXIT_FAILURE);
 	}
+
+	currHero = &david;
 
 	loadControlPoints(argv[1]);
 
@@ -878,24 +792,24 @@ int main(int argc, char *argv[]) {
 		glLoadIdentity();							// set the matrix to be the identity
 
 		glm::mat4 viewMtx;
-		if(arcballCam) {
-			viewMtx = glm::lookAt( camPos, heroPos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
-		} else if (freeCam) {
+		if(currCam == ARCBALL_CAM) {
+			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
+		} else if (currCam == FREE_CAM) {
 			freeCamDir.x = cos(yaw);
 			freeCamDir.y = sin(pitch);
 			freeCamDir.z = sin(yaw);
 			freeCamDir = glm::normalize(freeCamDir);
 
 			if(walking) {
-				freeCamPos += freeCamDir * direction * walkSpeed;
+				freeCamPos += freeCamDir * walkSpeed * direction;
 			}
 
-
 			viewMtx = glm::lookAt(freeCamPos, freeCamPos + freeCamDir, glm::vec3(0, 1, 0));
-		} else if (firstPersonCam) {
-			glm::vec3 normalDir = glm::normalize(heroDir);
-			glm::vec3 pos = glm::vec3(heroPos.x, 1.2f, heroPos.z);
-			viewMtx = glm::lookAt(pos, pos + normalDir, glm::vec3(  0,  1,  0 ) );
+		} else if (currCam == FIRST_PERSON_CAM) {
+
+			glm::vec3 normalDir = glm::normalize(currHero->direction);
+			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.2f, currHero->pos.z);
+			viewMtx = glm::lookAt(pos + normalDir, pos + 2.0f*normalDir, glm::vec3(  0,  1,  0 ) );
 		}
 
 		// multiply by the look at matrix - this is the same as our view martix
@@ -903,62 +817,67 @@ int main(int argc, char *argv[]) {
 
 		renderScene();					// draw everything to the window
 
-		if(arcballCam) {
+		if(currCam == ARCBALL_CAM) {
 			// Checks what direction the camera is moving (if any) and recomputes camera orientation
 			if(cameraIn) {
-				camDistance -= 0.2;
+				currHero->camDistance -= 0.2;
 				recomputeOrientation();
-				if(camDistance < 5){
-					camDistance = 5;
+				if(currHero->camDistance < 5){
+					currHero->camDistance = 5;
 					recomputeOrientation();
 				}
 			}
 			else if(cameraOut){
-				camDistance += 0.2;
+				currHero->camDistance += 0.2;
 				recomputeOrientation();
-				if(camDistance > 15){
-					camDistance = 15;
+				if(currHero->camDistance > 15){
+					currHero->camDistance = 15;
 					recomputeOrientation();
 				}
 			}
 			else if(cameraLeft){
-				cameraTheta += 0.05;
+				currHero->cameraTheta += 0.05;
 				recomputeOrientation();
 			}
 			else if(cameraRight){
-				cameraTheta -= 0.05;
+				currHero->cameraTheta -= 0.05;
 				recomputeOrientation();
 			}
 		}
 
-		if(arcballCam || firstPersonCam) {
+		// Whatever hero we want to freely walk around
+		if(currHero == &david && (currCam == ARCBALL_CAM || currCam == FIRST_PERSON_CAM)) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
-				heroPos = heroPos + (direction * walkSpeed * heroDir);
-				heroAngle += turnDirection * turnSpeed;
+				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+				currHero->yaw += turnDirection * turnSpeed;
 				recomputeOrientation();
 				checkBounds();
 
 				animateIndex = (animateIndex + 1) % animateVals.size();
-				animationFrame = animateVals[animateIndex];
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
 			}
 			else if(walking){
-				heroPos = heroPos + (direction * walkSpeed * heroDir);
+				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
 				recomputeOrientation();
 				checkBounds();
 
 				animateIndex = (animateIndex + 1) % animateVals.size();
-				animationFrame = animateVals[animateIndex];
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
 			}
 			else if(turning){
-				heroAngle += turnDirection * turnSpeed;
+				currHero->yaw += turnDirection * turnSpeed;
 				recomputeOrientation();
 
 				animateIndex = (animateIndex + 1) % animateVals.size();
-				animationFrame = animateVals[animateIndex];
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
 			}
 			else{
-				animationFrame = 0; // Default state for the hero
+				// animationFrame = 0; // Default state for the hero
+				david.setAnimationFrame(0);
 				animateIndex = 5;
 			}
 		}
