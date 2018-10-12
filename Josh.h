@@ -60,9 +60,10 @@ public:
 
 	void draw(bool animate) { // Draws character from upper half and two legs
 		 // rotate to current heading
+		wheelAngle += .5;
 		glm::mat4 transMtx2 = glm::translate(glm::mat4(), pos);
 		glMultMatrixf(&transMtx2[0][0]);
-
+		
 		glm::mat4 rotMtx = glm::rotate(glm::mat4(), yaw, glm::vec3(0.0f, -1.0f, 0.0f));
 		glMultMatrixf(&rotMtx[0][0]);
 
