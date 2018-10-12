@@ -79,7 +79,7 @@ vector<float> animateVals;							// vector to store a few different animation cy
 vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
 
 map<float, float> lookupTable;	
-int tableResolution = 1000;								// for smooth vehicle movement
+int tableResolution = 101;								// for smooth vehicle movement
 
 bool cageOn = true;									// Determines if the cage/curve should be visible or not
 bool curveOn = true;
@@ -213,16 +213,30 @@ void generateLookupTable() {
 		for (float j = 0; j < tableResolution; j += 1) {
 			glm::vec3 point = evaluateBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], j / tableResolution);
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
-			float t = i + j / tableResolution;
-			lookupTable[t] = distance;
+			float t = i / 3 + j / tableResolution;
+			lookupTable.insert(pair<float, float>(distance, t));
+			cout << distance << " " << lookupTable[distance] << endl;
 		}
 	}
 }
 
 float getParameterizedt(float pos) {
-	float bot = lookupTable.at(floor(pos * tableResolution) / tableResolution);
-	float top = lookupTable.at(ceil(pos * tableResolution) / tableResolution);
-	return (bot * (1 - (racerPos - floor(racerPos))) + top * (racerPos - floor(racerPos)));
+	float tAvg = pos / (((controlPoints.size() - 1) / 3));
+	cout << tAvg << endl;
+	map<float, float>::iterator low;
+	map<float, float>::iterator high;
+
+	cout << lookupTable.rbegin()->first << endl;
+	tAvg = tAvg * lookupTable.rbegin()->first;
+	cout << tAvg << endl;
+
+	float t = pos - floor(pos);
+	low = lookupTable.lower_bound(tAvg);
+	high = lookupTable.upper_bound(tAvg);
+
+	float value = low->second * (1 - t) + high->second * t;
+	cout << value << endl;
+	return low->second * (1 - t) + high->second * t;
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
@@ -548,10 +562,6 @@ void drawLamppost(){ // Draws a single lamppost
 }
 
 void drawVehicleNotParameterized() {
-	if (racerPos > ceil((controlPoints.size()) / 3))
-		racerPos = 0;
-
-
 	//move to location on bezier curve
 	int p0 = floor(racerPos) * 3;
 	float t = racerPos - floor(racerPos);
@@ -559,7 +569,7 @@ void drawVehicleNotParameterized() {
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-
+	CSCI441::drawSolidSphere(0.07, 20, 20);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -571,11 +581,12 @@ void drawVehicleParameterized() {
 	float t = getParameterizedt(racerPos);
 	//move to location on bezier curve
 	int p0 = floor(t) * 3;
+	t = t - floor(t);
 	glm::vec3 loc = evaluateBezierCurve(controlPoints.at(p0), controlPoints.at(p0 + 1), controlPoints.at(p0 + 2), controlPoints.at(p0 + 3), t);
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-
+	CSCI441::drawSolidSphere(0.1, 20, 20);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -593,7 +604,7 @@ void drawVehicleParameterized() {
 void generateEnvironmentDL() {
 	environmentDL = glGenLists(1);
 	glNewList(environmentDL, GL_COMPILE);
-		drawGrid();
+	drawGrid();
 	glEndList();
 
 
@@ -612,12 +623,17 @@ void generateEnvironmentDL() {
 void renderScene(void)  {
 	// update vehicle position
 	racerPos += .01;
+	if (racerPos > ceil((controlPoints.size()) / 3))
+		racerPos = 0;
 
 	glCallList(environmentDL);
 	//glCallList(terrainDL);
 	drawCharacter();
 	drawLamppost();
-	
+
+	drawVehicleParameterized();
+	drawVehicleNotParameterized();
+
 	glColor3ub(0, 255, 0);
 	for(unsigned int i = 0; i < controlPoints.size(); i++){
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
@@ -641,7 +657,7 @@ void renderScene(void)  {
 	
 	glColor3ub(255, 255, 0);
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
-		renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
+	//	renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
 
 
@@ -803,7 +819,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	loadControlPoints(argv[1]);
-
+	generateLookupTable();
 	// GLFW sets up our OpenGL context so must be done first
 	GLFWwindow *window = setupGLFW();	// initialize all of the GLFW specific information releated to OpenGL and our window
 	setupOpenGL();										// initialize all of the OpenGL specific information
