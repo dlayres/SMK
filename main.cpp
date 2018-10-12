@@ -121,6 +121,7 @@ GLuint cloudTexHandle;
 
 GLuint environmentDL;
 GLuint terrainDL;
+GLuint trackDL;
 
 // For free cam
 glm::vec3 freeCamPos, freeCamDir;
@@ -871,7 +872,6 @@ void drawLamppost(){ // Draws a single lamppost
 }
 
 void drawVehicleNotParameterized(HeroBase* racer) {
-
 	//move to location on bezier curve
 	int p0 = floor(racerPos) * 3;
 	float t = racerPos - floor(racerPos);
@@ -939,6 +939,22 @@ void drawBezierCurve() {
 	}
 }
 
+void drawTrack() {
+
+	for (size_t i = 0; i < curveControlPoints.size() - 3; i += 3) {
+		for (float j = 0; j < 10; j += 1) {
+			glm::vec3 point = evaluateBezierCurve2(curveControlPoints.at(i), curveControlPoints.at(i + 1), curveControlPoints.at(i + 2), curveControlPoints.at(i + 3), j / 10);
+			glPushMatrix();
+			glTranslatef(point.x, calcHeight(point.x, point.z) -3.0, point.z);
+			CSCI441::drawSolidCube(5.5);
+			//glRotatef(90, 1, 0, 0);
+			//CSCI441::drawSolidCylinder(1.0, 1.0, 2.0, 20, 20);
+			glPopMatrix();
+		}
+	}
+}
+
+
 
 // generateEnvironmentDL() /////////////////////////////////////////////////////
 //
@@ -953,12 +969,12 @@ void drawBezierCurve() {
 void generateEnvironmentDL() {
 	environmentDL = glGenLists(1);
 	glNewList(environmentDL, GL_COMPILE);
-	drawGrid();
+	//drawGrid();
+	//drawTrack();
 	glEndList();
 
 
 	terrainDL = glGenLists(1);
-
 
 	glNewList(terrainDL, GL_COMPILE);
 	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
@@ -991,6 +1007,7 @@ void renderScene(void)  {
 		racerPos = 0;
 
 	glCallList(environmentDL);
+	
 	//drawCharacter();
 	//drawLamppost();
 
@@ -1004,7 +1021,7 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColor2);
 	for (int i = 0; i < cactusPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(cactusPoints[i].x, calcHeight(cactusPoints[i].x, cactusPoints[i].y) + 10.0, cactusPoints[i].y);
+		glTranslatef(cactusPoints[i].x, calcHeight(cactusPoints[i].x, cactusPoints[i].y), cactusPoints[i].y);
 		glScalef(.5, .5, .5);
 		drawCactus();
 		glPopMatrix();
@@ -1012,17 +1029,17 @@ void renderScene(void)  {
 
 	for (int i = 0; i < lampPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(lampPoints[i].x, calcHeight(lampPoints[i].x, lampPoints[i].y), lampPoints[i].y);
+		glTranslatef(lampPoints[i].x, calcHeight(lampPoints[i].x, lampPoints[i].y) -5.0, lampPoints[i].y);
 		drawLamppost();
 		glPopMatrix();
 	}
 
+
 	// Draw all the heros
 	//glPushMatrix();
 	//glTranslatef(0, 10, 0);
-
-	drawBezierCurve();
-
+	//drawBezierCurve();
+	drawTrack();
 	GLfloat matColorA[4] = { 0.19225, 0.19225, 0.19225 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorA);
 
@@ -1032,7 +1049,7 @@ void renderScene(void)  {
 	GLfloat matColorA2[4] = { 0.408273, 0.408273, 0.408273, 1.0 };
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorA2);
 
-	drawVehicleParameterized(&alex);
+	drawVehicleNotParameterized(&alex);
 
 	GLfloat matColorJ[4] = { 0.05, 0.05, 0.05 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorJ);
@@ -1069,7 +1086,7 @@ void renderScene(void)  {
 	//glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
 
 
-	drawBezierCurve();
+	//drawBezierCurve();
 
 
 
@@ -1282,9 +1299,9 @@ void setupScene() {
 	freeCamDir.y = 0.0f;
 	freeCamDir.z = 1.0f;
 
-	freeCamPos.x = 0.0f;
+	freeCamPos.x = 1.0f;
 	freeCamPos.y = 1.0f;
-	freeCamPos.z = 0.0f;
+	freeCamPos.z = 1.0f;
 
 	srand(time(NULL));	// seed our random number generator
 	generateEnvironmentDL();
