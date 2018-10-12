@@ -39,6 +39,10 @@
 #include <sstream>
 #include <math.h>
 
+#include "HeroBase.h"
+#include "Alex.h"
+#include "David.h"
+
 using namespace std;
 
 //*************************************************************************************
@@ -49,6 +53,10 @@ using namespace std;
 // set to initial values for convenience, but we need variables
 // for later on in case the window gets resized.
 int windowWidth = 640, windowHeight = 480;
+
+const int ARCBALL_CAM = 0;
+const int FREE_CAM = 1;
+
 
 int leftMouseButton;    	 						// status of the mouse button
 glm::vec2 mousePos;			              		  	// last known X and Y of the mouse
@@ -65,7 +73,7 @@ bool cameraRight = false;
 glm::vec3 heroPos;									// position of the hero
 float heroAngle;									// direction the hero is facing in radians (0 is along the positive Z axis)
 glm::vec3 heroDir;									// vector for the direction the hero is facing
-float walkSpeed = 0.05f;							// speed the hero is walking as a factor of a unit vector
+float walkSpeed = 0.1f;							// speed the hero is walking as a factor of a unit vector
 float turnSpeed = 0.05f;							// speed the hero is turning
 
 float racerPos = 0;									// t value for racing heroes
@@ -88,7 +96,7 @@ pair<float, float> mew(1.2, 2.4);
 
 int tableResolution = 100;								// for smooth vehicle movement
 
-int surfaceRes = 5;
+int surfaceRes = 50;
 float height = 0;
 
 glm::mat4 transMtx; 								// global variables used for transformations
@@ -99,6 +107,20 @@ GLuint cloudTexHandle;
 
 GLuint environmentDL;
 GLuint terrainDL;
+
+// For free cam
+glm::vec3 freeCamPos, freeCamDir;
+float yaw = 0.0f;
+float pitch = 0.0f;
+
+int currCam = ARCBALL_CAM;
+bool viewOverlay = false;
+int overlaySize = 150;
+
+
+HeroBase* currHero;
+Alex alex(glm::vec3(5.0f, 0.0f, 10.0f));
+David david(glm::vec3(5.0f, 0.3f, 5.0f));
 
 //*************************************************************************************
 //
@@ -119,8 +141,12 @@ float getRand() { return rand() / (float)RAND_MAX; }
 //
 ////////////////////////////////////////////////////////////////////////////////
 void recomputeOrientation() {
-	heroDir = glm::vec3(sin(heroAngle), 0, cos(heroAngle));
-	camPos = glm::vec3(camDistance * sin(cameraTheta) * sin(cameraPhi), -camDistance * cos(cameraPhi), -camDistance * cos(cameraTheta) * sin(cameraPhi)) + heroPos;
+	float camDistance = currHero->camDistance;
+	float cameraTheta = currHero->cameraTheta;
+	float cameraPhi = currHero->cameraPhi;
+
+	currHero->direction = glm::vec3(sin(currHero->yaw), 0, cos(currHero->yaw));
+	currHero->camPos = glm::vec3(camDistance * sin(cameraTheta) * sin(cameraPhi), -camDistance * cos(cameraPhi), -camDistance * cos(cameraTheta) * sin(cameraPhi)) + currHero->pos;
 }
 
 // checkBounds() ///////////////////////////////////////////////////////////////
@@ -129,7 +155,7 @@ void recomputeOrientation() {
 //  out of bounds of the map, and if it is, places the hero back on the map
 //
 ////////////////////////////////////////////////////////////////////////////////
-void checkBounds(){
+void checkBounds() {
 	if(heroPos.x < -50){
 		heroPos.x = -50;
 	}
@@ -187,7 +213,7 @@ bool loadSurfaceControlPoints( char* filename ) {
 			getline(inputFile, x, ',');
 			getline(inputFile, y, ',');
 			getline(inputFile, z);
-			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()), atof(y.c_str()), atof(z.c_str()));
+			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * 10, atof(y.c_str()) * 4, atof(z.c_str()) * 10);
 			newSurface.push_back(controlPoint);
 		}
 		controlPoints.push_back(newSurface);
@@ -308,7 +334,7 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, glm::vec3 p5, glm::vec3 p6, glm::vec3 p7, int resolution ) {
 	float t = 0.0;
-	while(t <= 1.0 - (1.0 / resolution) + 0.0001){
+	while(t <= 1.0 - (1.0 / resolution) + 0.0001) {
 		glm::vec3 nextPoint1 = evaluateBezierCurve(p0, p1, p2, p3, t);
 		glm::vec3 nextPoint2 = evaluateBezierCurve(p0, p1, p2, p3, t + (1.0 / resolution));
 		glm::vec3 nextPoint3 = evaluateBezierCurve(p4, p5, p6, p7, t);
@@ -448,6 +474,15 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 					surfaceRes--;
 				}
 				break;
+			case GLFW_KEY_1:
+				currCam = ARCBALL_CAM;
+				break;
+			case GLFW_KEY_2:
+				currCam = FREE_CAM;
+				break;
+			case GLFW_KEY_3:
+				viewOverlay = !viewOverlay;
+				break;
 		}
 	}
 	else{
@@ -458,6 +493,19 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 		cameraOut = false;
 		cameraLeft = false;
 		cameraRight = false;
+	}
+
+	if(mods == GLFW_MOD_CONTROL && action == GLFW_PRESS) {
+		if(key == GLFW_KEY_A) {
+			currHero = &alex;
+		}
+		else if(key == GLFW_KEY_D) {
+			currHero = &david;
+		}
+		else if(key == GLFW_KEY_S) {
+		}
+		else if(key == GLFW_KEY_J) {
+		}
 	}
 }
 
@@ -472,15 +520,32 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 ////////////////////////////////////////////////////////////////////////////////
 static void cursor_callback( GLFWwindow *window, double x, double y ) {
 	if( leftMouseButton == GLFW_PRESS ) {
-		cameraTheta -= (0.005 * (x - mousePos.x));
-		cameraPhi += (0.005 * (mousePos.y - y));
-		if(cameraPhi > M_PI - 0.01){
-			cameraPhi = M_PI - 0.01;
+		currHero->cameraTheta -= (0.005 * (x - mousePos.x));
+		currHero->cameraPhi += (0.005 * (mousePos.y - y));
+		
+		if(currHero->cameraPhi > M_PI - 0.01){
+			currHero->cameraPhi = M_PI - 0.01;
 		}
-		else if(cameraPhi < 0.01){
-			cameraPhi = 0.01;
+		else if(currHero->cameraPhi < 0.01){
+			currHero->cameraPhi = 0.01;
 		}
 		recomputeOrientation();     // update camera (x,y,z) based on (theta,phi)
+		
+		if(currCam == FREE_CAM) {
+			float mdx = x - mousePos.x;
+			float mdy = y - mousePos.y;
+
+			yaw += mdx * 0.01f;
+			pitch += mdy * 0.01f;
+
+			float maxAngle = M_PI / 2.0f - 0.01f;
+			if(pitch >= maxAngle) {
+				pitch = maxAngle;
+			}
+			if(pitch <= -maxAngle) {
+				pitch = -maxAngle;
+			}
+		}
 	}
 
 	mousePos.x = x;
@@ -506,12 +571,13 @@ static void mouse_button_callback( GLFWwindow *window, int button, int action, i
 //
 ////////////////////////////////////////////////////////////////////////////////
 static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset){
-	camDistance -= yoffset;
-	if(camDistance < 1){
-		camDistance = 1;
+	currHero->camDistance -= yoffset;
+	if(currHero->camDistance < 1){
+		currHero->camDistance = 1;
 	}
-	else if(camDistance > 150){
-		camDistance = 150;
+	else if(currHero->camDistance > 15){
+		currHero->camDistance = 15;
+
 	}
 	recomputeOrientation();
 }
@@ -795,17 +861,26 @@ void generateEnvironmentDL() {
 
 
 	terrainDL = glGenLists(1);
+
+
+
 	glNewList(terrainDL, GL_COMPILE);
-		for (int x = -40; x <= 40; x += 10) {
-			for (int z = -40; z <= 40; z += 10) {
-				transMtx = glm::translate(glm::mat4(), glm::vec3(x, 0, z));
-				glMultMatrixf(&transMtx[0][0]);
-				for (unsigned int i = 0; i < controlPoints.size(); i++) {
-					renderBezierSurface(controlPoints[i], surfaceRes);
-				}
-				glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
-			}
-		}
+	transMtx = glm::translate(glm::mat4(), glm::vec3(-50, 0, 50));
+	glMultMatrixf(&transMtx[0][0]);
+	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
+	glMaterialf(GL_FRONT, GL_SHININESS, .0 * 128);
+	for (unsigned int i = 0; i < controlPoints.size(); i++) {
+		renderBezierSurface(controlPoints[i], surfaceRes);
+	}
+	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	glEndList();
 
 }
@@ -826,14 +901,34 @@ void renderScene(void)  {
 	drawLamppost();
 	glPushMatrix();
 	glScalef(.5, .5, .5);
+
+	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
+	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
+
 	drawCactus();
 	glPopMatrix();
+	// Draw all the heros
+	alex.draw(false);
+	david.draw(false);
 	
-
+	
+	glColor3ub(255, 255, 0);
+	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
+		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
+	}
 
 
 	//drawVehicleParameterized();
 	//drawVehicleNotParameterized();
+
 
 
 
@@ -854,7 +949,6 @@ void renderScene(void)  {
 
 	glCallList(terrainDL);
 
-	//cout << mew.first << " " << mew.second << endl;
 }
 
 
@@ -924,18 +1018,33 @@ void setupOpenGL() {
 	//		surface removal.  We will discuss this more very soon.
 	glEnable(GL_DEPTH_TEST);
 
+	glFrontFace(GL_CCW);              // denote front faces specified by counter-clockwise winding order
+
+	glShadeModel(GL_FLAT);            // use flat shading
+
+	GLfloat lightAmbCol[4] = { 0, 0, 0, 1 };
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lightAmbCol);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
+
 	//******************************************************************
 	// this is some code to enable a default light for the scene;
 	// feel free to play around with this, but we won't talk about
 	// lighting in OpenGL for another couple of weeks yet.
-	float lightCol[4] = { 1, 1, 1, 1 };
+	glEnable(GL_LIGHTING);            // we are now using lighting
+	glEnable(GL_LIGHT0);              // and turn on Light 0 please (and thank you)
+	float diffuseCol[4] = { 0.1, 0.2, 0.2, 1.0 };
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseCol);
 	float ambientCol[4] = { 0.0, 0.0, 0.0, 1.0 };
-	float lPosition[4] = { 10, 10, 10, 1 };
-	glLightfv(GL_LIGHT0, GL_POSITION, lPosition);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightCol);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientCol);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
+
+	glEnable(GL_NORMALIZE);           // make sure our normals stay normal after transformations
+
+	float diffuseCol2[4] = { 1.0, 0.8, 0.8, 1.0 };
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseCol2);
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 12);
+	glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, 100);
+	glEnable(GL_LIGHT1);
 
 	// tell OpenGL not to use the material system; just use whatever we
 	// pass with glColor*()
@@ -948,7 +1057,6 @@ void setupOpenGL() {
 	// if your object has a blocky surface, you probably want to disable this.
 	glShadeModel(GL_SMOOTH);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// set the clear color to black
 }
 
 //
@@ -992,7 +1100,16 @@ void setupScene() {
 	heroPos.y = calcHeight(heroPos.x, heroPos.z);
 	heroAngle = 0.0f;
 	heroDir = glm::vec3(0, 0, 1);
+
 	recomputeOrientation();
+
+	freeCamDir.x = 0.0f;
+	freeCamDir.y = 0.0f;
+	freeCamDir.z = 1.0f;
+
+	freeCamPos.x = 0.0f;
+	freeCamPos.y = 1.0f;
+	freeCamPos.z = 0.0f;
 
 	srand(time(NULL));	// seed our random number generator
 	generateEnvironmentDL();
@@ -1013,8 +1130,12 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+
 	loadSurfaceControlPoints(argv[1]);
 	loadCurveControlPoints(argv[2]);
+
+	currHero = &david;
+
 
 	generateLookupTable();
 	// GLFW sets up our OpenGL context so must be done first
@@ -1027,65 +1148,97 @@ int main(int argc, char *argv[]) {
 	//	until the user decides to close the window and quit the program.  Without a loop, the
 	//	window will display once and then the program exits.
 	while( !glfwWindowShouldClose(window) ) {	// check if the window was instructed to be closed
-		glDrawBuffer( GL_BACK );				// work with our back frame buffer
-		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );	// clear the current color contents and depth buffer in the window
-
-		// update the projection matrix based on the window size
-		// the GL_PROJECTION matrix governs properties of the view coordinates;
-		// i.e. what gets seen - use a perspective projection that ranges
-		// with a FOV of 45 degrees, for our current aspect ratio, and Z ranges from [0.001, 1000].
-		glm::mat4 projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
-		glMatrixMode( GL_PROJECTION );	// change to the Projection matrix
-		glLoadIdentity();				// set the matrix to be the identity
-		glMultMatrixf( &projMtx[0][0] );// load our orthographic projection matrix into OpenGL's projection matrix state
-
-		// Get the size of our framebuffer.  Ideally this should be the same dimensions as our window, but
-		// when using a Retina display the actual window can be larger than the requested window.  Therefore
-		// query what the actual size of the window we are rendering to is.
+		glDrawBuffer( GL_BACK );
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
 		GLint framebufferWidth, framebufferHeight;
 		glfwGetFramebufferSize( window, &framebufferWidth, &framebufferHeight );
+		glViewport(0, 0, framebufferWidth, framebufferHeight);
+		
+		glm::mat4 projMtx, viewMtx;
+		
+		projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
+		glMatrixMode( GL_PROJECTION );
+		glLoadIdentity();
+		glMultMatrixf( &projMtx[0][0] );
+		
+		glMatrixMode( GL_MODELVIEW );
+		glLoadIdentity();
+		
+		if(currCam == ARCBALL_CAM) {
+			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
+		} else if (currCam == FREE_CAM) {
+			freeCamDir.x = cos(pitch) * cos(yaw);
+			freeCamDir.y = sin(pitch);
+			freeCamDir.z = cos(pitch) * sin(yaw);
 
-		// update the viewport - tell OpenGL we want to render to the whole window
-		glViewport( 0, 0, framebufferWidth, framebufferHeight );
+			freeCamDir = glm::normalize(freeCamDir);
 
-		glMatrixMode( GL_MODELVIEW );	// make the ModelView matrix current to be modified by any transformations
-		glLoadIdentity();							// set the matrix to be the identity
+			if(walking) {
+				freeCamPos += freeCamDir * walkSpeed * direction;
+			}
 
-		// set up our look at matrix to position our camera
-		glm::mat4 viewMtx = glm::lookAt( camPos,		// position camera is located
-										 heroPos + glm::vec3(0, 1, 0),		// where the camera is looking (at the hero)
-										 glm::vec3(  0,  1,  0 ) );		// up vector is (0, 1, 0) - positive Y
-		// multiply by the look at matrix - this is the same as our view martix
+			viewMtx = glm::lookAt(freeCamPos, freeCamPos + freeCamDir, glm::vec3(0, 1, 0));
+		}
 		glMultMatrixf( &viewMtx[0][0] );
+		renderScene();
+		
+		if(viewOverlay) {
+			int overlayX = windowWidth - overlaySize;
+			int overlayY = windowHeight - overlaySize;
+			
+			glEnable(GL_SCISSOR_TEST);
+			glScissor(overlayX, overlayY, overlaySize, overlaySize);
+			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+			glDisable(GL_SCISSOR_TEST);
+			
+			glViewport(overlayX, overlayY, overlaySize, overlaySize);
+			
+			projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
+			glMatrixMode( GL_PROJECTION );
+			glLoadIdentity();
+			glMultMatrixf(&projMtx[0][0]);
 
-		renderScene();					// draw everything to the window
-
-		// Checks what direction the camera is moving (if any) and recomputes camera orientation
-		if(cameraIn){
-			camDistance -= 0.2;
-			recomputeOrientation();
-			if(camDistance < 5){
-				camDistance = 5;
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			
+			// First person camera view matrix
+			glm::vec3 normalDir = glm::normalize(currHero->direction);
+			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.01f, currHero->pos.z);
+			viewMtx = glm::lookAt(pos + 0.5f*normalDir, pos + normalDir, glm::vec3(  0,  1,  0 ) );
+			glMultMatrixf(&viewMtx[0][0]);
+			renderScene();
+		}
+		
+		if(currCam == ARCBALL_CAM) {
+			// Checks what direction the camera is moving (if any) and recomputes camera orientation
+			if(cameraIn) {
+				currHero->camDistance -= 0.2;
+				recomputeOrientation();
+				if(currHero->camDistance < 5){
+					currHero->camDistance = 5;
+					recomputeOrientation();
+				}
+			}
+			else if(cameraOut){
+				currHero->camDistance += 0.2;
+				recomputeOrientation();
+				if(currHero->camDistance > 15){
+					currHero->camDistance = 15;
+					recomputeOrientation();
+				}
+			}
+			else if(cameraLeft){
+				currHero->cameraTheta += 0.05;
+				recomputeOrientation();
+			}
+			else if(cameraRight){
+				currHero->cameraTheta -= 0.05;
 				recomputeOrientation();
 			}
 		}
-		else if(cameraOut){
-			camDistance += 0.2;
-			recomputeOrientation();
-			if(camDistance > 15){
-				camDistance = 15;
-				recomputeOrientation();
-			}
-		}
-		else if(cameraLeft){
-			cameraTheta += 0.05;
-			recomputeOrientation();
-		}
-		else if(cameraRight){
-			cameraTheta -= 0.05;
-			recomputeOrientation();
-		}
 
+/*
 		// Checks what the hero is doing, and moves/animates the hero accordingly
 		if(walking && turning){
 			heroPos = heroPos + (direction * walkSpeed * heroDir);
@@ -1102,23 +1255,44 @@ int main(int argc, char *argv[]) {
 			heroPos.y = calcHeight(heroPos.x, heroPos.z);
 			recomputeOrientation();
 			checkBounds();
+*/
+		// Whatever hero we want to freely walk around
+		if(currHero == &david && currCam == ARCBALL_CAM) {
+			// Checks what the hero is doing, and moves/animates the hero accordingly
+			if(walking && turning){
+				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+				currHero->yaw += turnDirection * turnSpeed;
+				recomputeOrientation();
+				checkBounds();
 
-			animateIndex = (animateIndex + 1) % animateVals.size();
-			animationFrame = animateVals[animateIndex];
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
+			}
+			else if(walking){
+				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+				recomputeOrientation();
+				checkBounds();
+
+
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
+			}
+			else if(turning){
+				currHero->yaw += turnDirection * turnSpeed;
+				recomputeOrientation();
+
+				animateIndex = (animateIndex + 1) % animateVals.size();
+				// animationFrame = animateVals[animateIndex];
+				david.setAnimationFrame(animateVals[animateIndex]);
+			}
+			else{
+				// animationFrame = 0; // Default state for the hero
+				david.setAnimationFrame(0);
+				animateIndex = 5;
+			}
 		}
-		else if(turning){
-			heroAngle += turnDirection * turnSpeed;
-			recomputeOrientation();
-
-			animateIndex = (animateIndex + 1) % animateVals.size();
-			animationFrame = animateVals[animateIndex];
-		}
-		else{
-			animationFrame = 0; // Default state for the hero
-			animateIndex = 5;
-		}
-
-
 
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
