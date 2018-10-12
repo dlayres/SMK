@@ -257,7 +257,7 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, glm::vec3 p5, glm::vec3 p6, glm::vec3 p7, int resolution ) {
 	float t = 0.0;
-	while(t <= 1.0 - (1.0 / resolution) + 0.0001){
+	while(t <= 1.0 - (1.0 / resolution) + 0.0001) {
 		glm::vec3 nextPoint1 = evaluateBezierCurve(p0, p1, p2, p3, t);
 		glm::vec3 nextPoint2 = evaluateBezierCurve(p0, p1, p2, p3, t + (1.0 / resolution));
 		glm::vec3 nextPoint3 = evaluateBezierCurve(p4, p5, p6, p7, t);
@@ -1104,7 +1104,7 @@ int main(int argc, char *argv[]) {
 			
 			// First person camera view matrix
 			glm::vec3 normalDir = glm::normalize(currHero->direction);
-			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.2f, currHero->pos.z);
+			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.01f, currHero->pos.z);
 			viewMtx = glm::lookAt(pos + 0.5f*normalDir, pos + normalDir, glm::vec3(  0,  1,  0 ) );
 			glMultMatrixf(&viewMtx[0][0]);
 			renderScene();
