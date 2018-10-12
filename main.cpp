@@ -264,27 +264,22 @@ void generateLookupTable() {
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
 			float t = i / 3 + j / tableResolution;
 			lookupTable.insert(pair<float, float>(distance, t));
-			cout << distance << " " << lookupTable[distance] << endl;
 		}
 	}
 }
 
 float getParameterizedt(float pos) {
 	float tAvg = pos / (((controlPoints.size() - 1) / 3));
-	cout << tAvg << endl;
 	map<float, float>::iterator low;
 	map<float, float>::iterator high;
 
-	cout << lookupTable.rbegin()->first << endl;
 	tAvg = tAvg * lookupTable.rbegin()->first;
-	cout << tAvg << endl;
 
 	float t = pos - floor(pos);
 	low = lookupTable.lower_bound(tAvg);
 	high = lookupTable.upper_bound(tAvg);
 
 	float value = low->second * (1 - t) + high->second * t;
-	cout << value << endl;
 	return low->second * (1 - t) + high->second * t;
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
