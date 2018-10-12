@@ -53,7 +53,6 @@ int windowWidth = 640, windowHeight = 480;
 
 const int ARCBALL_CAM = 0;
 const int FREE_CAM = 1;
-const int FIRST_PERSON_CAM = 2;
 
 
 int leftMouseButton;    	 						// status of the mouse button
@@ -110,6 +109,9 @@ float yaw = 0.0f;
 float pitch = 0.0f;
 
 int currCam = ARCBALL_CAM;
+bool viewOverlay = false;
+int overlaySize = 150;
+
 
 HeroBase* currHero;
 Alex alex(glm::vec3(5.0f, 0.0f, 10.0f));
@@ -392,7 +394,7 @@ static void keyboard_callback( GLFWwindow *window, int key, int scancode, int ac
 				currCam = FREE_CAM;
 				break;
 			case GLFW_KEY_3:
-				currCam = FIRST_PERSON_CAM;
+				viewOverlay = !viewOverlay;
 				break;
 		}
 	}
@@ -837,9 +839,9 @@ void renderScene(void)  {
 	}
 
 
-
 	//drawVehicleParameterized();
 	//drawVehicleNotParameterized();
+
 
 
 
@@ -859,6 +861,7 @@ void renderScene(void)  {
 	glColor3ub(45, 163, 59);
 
 	glCallList(terrainDL);
+
 }
 
 
@@ -1045,31 +1048,23 @@ int main(int argc, char *argv[]) {
 	//	until the user decides to close the window and quit the program.  Without a loop, the
 	//	window will display once and then the program exits.
 	while( !glfwWindowShouldClose(window) ) {	// check if the window was instructed to be closed
-		glDrawBuffer( GL_BACK );				// work with our back frame buffer
-		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );	// clear the current color contents and depth buffer in the window
-
-		// update the projection matrix based on the window size
-		// the GL_PROJECTION matrix governs properties of the view coordinates;
-		// i.e. what gets seen - use a perspective projection that ranges
-		// with a FOV of 45 degrees, for our current aspect ratio, and Z ranges from [0.001, 1000].
-		glm::mat4 projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
-		glMatrixMode( GL_PROJECTION );	// change to the Projection matrix
-		glLoadIdentity();				// set the matrix to be the identity
-		glMultMatrixf( &projMtx[0][0] );// load our orthographic projection matrix into OpenGL's projection matrix state
-
-		// Get the size of our framebuffer.  Ideally this should be the same dimensions as our window, but
-		// when using a Retina display the actual window can be larger than the requested window.  Therefore
-		// query what the actual size of the window we are rendering to is.
+		glDrawBuffer( GL_BACK );
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
 		GLint framebufferWidth, framebufferHeight;
 		glfwGetFramebufferSize( window, &framebufferWidth, &framebufferHeight );
-
-		// update the viewport - tell OpenGL we want to render to the whole window
-		glViewport( 0, 0, framebufferWidth, framebufferHeight );
-
-		glMatrixMode( GL_MODELVIEW );	// make the ModelView matrix current to be modified by any transformations
-		glLoadIdentity();							// set the matrix to be the identity
-
-		glm::mat4 viewMtx;
+		glViewport(0, 0, framebufferWidth, framebufferHeight);
+		
+		glm::mat4 projMtx, viewMtx;
+		
+		projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
+		glMatrixMode( GL_PROJECTION );
+		glLoadIdentity();
+		glMultMatrixf( &projMtx[0][0] );
+		
+		glMatrixMode( GL_MODELVIEW );
+		glLoadIdentity();
+		
 		if(currCam == ARCBALL_CAM) {
 			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
 		} else if (currCam == FREE_CAM) {
@@ -1084,18 +1079,29 @@ int main(int argc, char *argv[]) {
 			}
 
 			viewMtx = glm::lookAt(freeCamPos, freeCamPos + freeCamDir, glm::vec3(0, 1, 0));
-		} else if (currCam == FIRST_PERSON_CAM) {
+		}
+		glMultMatrixf( &viewMtx[0][0] );
+		renderScene();
+		
+		if(viewOverlay) {
+			glViewport(windowWidth - overlaySize, windowHeight - overlaySize, overlaySize, overlaySize);
+			
+			projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
+			glMatrixMode( GL_PROJECTION );
+			glLoadIdentity();
+			glMultMatrixf(&projMtx[0][0]);
 
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			
+			// First person camera view matrix
 			glm::vec3 normalDir = glm::normalize(currHero->direction);
 			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.2f, currHero->pos.z);
 			viewMtx = glm::lookAt(pos + normalDir, pos + 2.0f*normalDir, glm::vec3(  0,  1,  0 ) );
+			glMultMatrixf(&viewMtx[0][0]);
+			renderScene();
 		}
-
-		// multiply by the look at matrix - this is the same as our view martix
-		glMultMatrixf( &viewMtx[0][0] );
-
-		renderScene();					// draw everything to the window
-
+		
 		if(currCam == ARCBALL_CAM) {
 			// Checks what direction the camera is moving (if any) and recomputes camera orientation
 			if(cameraIn) {
@@ -1125,7 +1131,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		// Whatever hero we want to freely walk around
-		if(currHero == &david && (currCam == ARCBALL_CAM || currCam == FIRST_PERSON_CAM)) {
+		if(currHero == &david && currCam == ARCBALL_CAM) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
