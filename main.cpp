@@ -648,7 +648,10 @@ void drawCactus() {
 
 	glColor3f(0, 1.0, 0);
 
-	CSCI441::drawSolidCylinder(1.0, 1.0, 10.0, 20, 20);
+	glPushMatrix();
+	glTranslatef(0, -10.0, 0);
+	CSCI441::drawSolidCylinder(1.0, 1.0, 20.0, 20, 20);
+	glPopMatrix();
 	glPushMatrix();
 	glTranslatef(0, 10.0, 0);
 	CSCI441::drawSolidSphere(1.0, 20, 20);
@@ -931,11 +934,9 @@ void renderScene(void)  {
 		racerPos = 0;
 
 	glCallList(environmentDL);
-	drawCharacter();
-	drawLamppost();
+	//drawCharacter();
+	//drawLamppost();
 
-	glPushMatrix();
-	glScalef(.5, .5, .5);
 	GLfloat matColor[4] = { 0.135,0.2225,0.1575 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColor);
 
@@ -946,15 +947,15 @@ void renderScene(void)  {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, matColor2);
 	for (int i = 0; i < cactusPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(cactusPoints[i].x, 30, cactusPoints[i].y);
+		glTranslatef(cactusPoints[i].x, calcHeight(cactusPoints[i].x, cactusPoints[i].y) + 10.0, cactusPoints[i].y);
+		glScalef(.5, .5, .5);
 		drawCactus();
 		glPopMatrix();
 	}
-	glPopMatrix();
 
 	for (int i = 0; i < lampPoints.size(); i++) {
 		glPushMatrix();
-		glTranslatef(lampPoints[i].x, 30, lampPoints[i].y);
+		glTranslatef(lampPoints[i].x, calcHeight(lampPoints[i].x, lampPoints[i].y), lampPoints[i].y);
 		drawLamppost();
 		glPopMatrix();
 	}
@@ -976,6 +977,7 @@ void renderScene(void)  {
 	drawVehicleParameterized(&alex);
 	drawVehicleNotParameterized(&josh);
 	drawVehicleParameterized(&sav);
+	david.draw(false);
 	/*
 	alex.draw(false);
 	david.draw(false);
@@ -1150,7 +1152,7 @@ void setupOpenGL() {
 //  void setupScene()
 //
 //      Used to setup everything scene related.  Give our camera an
-//	initial starting point and generate the display list for our city
+//	al starting point and generate the display list for our city
 //
 void setupScene() {
 	// Initialize animateVals vector to store different animation settings
@@ -1174,6 +1176,7 @@ void setupScene() {
 	animateVals.push_back(-0.2);
 	animateVals.push_back(-0.3);
 	animateVals.push_back(-0.4);
+
 
 	// give the camera a scenic starting point.
 	camPos.x = 5;
@@ -1347,7 +1350,7 @@ int main(int argc, char *argv[]) {
 			checkBounds();
 */
 		// Whatever hero we want to freely walk around
-		if(currHero == &david && currCam == ARCBALL_CAM) {
+		if(currCam == ARCBALL_CAM) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
