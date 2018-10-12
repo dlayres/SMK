@@ -4,7 +4,7 @@
  *  Project: SMK
  *  File: main.cpp
  *
- *	Author: David Ayres (and others)
+ *	Authors: David Ayres, Alexander DeGroat, Joshua Nachtigal, Savannah Paul
  *
  *  Description:
  *      Watch some heroes race around a track
@@ -75,7 +75,6 @@ float turnSpeed = 0.05f;							// speed the hero is turning
 
 float racerPos = 0;									// t value for racing heroes
 
-
 bool walking = false;								// values that determine whether or not the hero is turning and/or walking
 bool turning = false;
 float direction = 1.0f;								// direction the hero is walking (forwards = 1.0, backwards = -1.0)
@@ -85,13 +84,11 @@ float animationFrame = 0.0f;						// value for the current animation cycle (used
 int animateIndex = 5;								// index the value of the animation cycle is in the following vector
 vector<float> animateVals;							// vector to store a few different animation cycle values
 
-vector<glm::vec3> controlPoints; 					// control points for Bezier curve 										// how many curve pieces the whole curve is made of
+vector<glm::vec3> controlPoints; 					// control points for Bezier curve
 
 map<float, float> lookupTable;	
-int tableResolution = 1000;								// for smooth vehicle movement
+int tableResolution = 1000;							// for smooth vehicle movement
 
-bool cageOn = true;									// Determines if the cage/curve should be visible or not
-bool curveOn = true;
 int surfaceRes = 3;
 
 glm::mat4 transMtx; 								// global variables used for transformations
@@ -578,10 +575,14 @@ void renderScene(void)  {
 
 	drawLamppost();
 	
+
 	// Draw all the heros
 	alex.draw(false);
 	david.draw(false);
 
+
+
+	// draws surface control points
 	glColor3ub(0, 255, 0);
 	for(unsigned int i = 0; i < controlPoints.size(); i++){
 		transMtx = glm::translate(glm::mat4(), glm::vec3(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z));
@@ -608,7 +609,7 @@ void renderScene(void)  {
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
 
-
+	// draws surface
 	renderBezierSurface(controlPoints, surfaceRes);
 
 
