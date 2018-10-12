@@ -98,6 +98,8 @@ int tableResolution = 100;								// for smooth vehicle movement
 
 int surfaceRes = 50;
 float height = 0;
+int scaleConstant = 10;
+int heightScaleConstant = 4;
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
@@ -213,7 +215,7 @@ bool loadSurfaceControlPoints( char* filename ) {
 			getline(inputFile, x, ',');
 			getline(inputFile, y, ',');
 			getline(inputFile, z);
-			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * 10, atof(y.c_str()) * 4, atof(z.c_str()) * 10);
+			glm::vec3 controlPoint = glm::vec3(atof(x.c_str()) * scaleConstant, atof(y.c_str()) * heightScaleConstant, atof(z.c_str()) * scaleConstant);
 			newSurface.push_back(controlPoint);
 		}
 		controlPoints.push_back(newSurface);
@@ -254,17 +256,17 @@ float calcHeight(float x, float y) {
 
 	cout << "x: " << x << "y: " << y << endl;
 	
-	while (x > 10) {
-		x = x - 10;
+	while (x > 100) {
+		x = x - 100;
 	}
-	while (y > 10) {
-		y =y - 10;
+	while (y > 100) {
+		y =y - 100;
 	}
 	while (x < 0) {
-		x = x + 10;
+		x = x + 100;
 	}
 	while (y < 0) {
-		y = y + 10;
+		y = y + 100;
 	}
 	pair<float, float> temp(round(x), round(y));
 	//stringstream iss;
@@ -276,13 +278,14 @@ float calcHeight(float x, float y) {
 	//string both = x_t + " " + y_t;
 
 
-	if (totalPoints.find(temp) == totalPoints.end()) {
+	//if (totalPoints.find(temp) == totalPoints.end()) {
 		//cout << "key not found" << endl;
 		map<pair<float, float>, float>::iterator lower = totalPoints.lower_bound(temp);
 		map<pair<float, float>, float>::iterator upper = totalPoints.upper_bound(temp);
-		return (upper->second + lower->second) / 2;
+		return upper->second;
+		//return (upper->second + lower->second) / 2;
 		//return ( (upper->second * (temp.first / upper->first.first) * (temp.second / upper->first.second) / upper->first.first) + (lower->second * (upper->first.first - (temp.first / upper->first.first)) * (upper->first.second - upper->first.second / temp.second)) / upper->first.second);
-	}
+	//}
 
 	//cout << both << endl;
 	//cout << totalPoints[both] << endl;
@@ -310,10 +313,35 @@ glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::ve
 	string both = x + " " + y;
 	glm::vec3 temp(point.x, point.z, 0);
 	*/
-	pair<float, float> temp (round(point.x), abs(round(point.z)));
+	
+	//cout << both << endl;
+	//float z = point.y;
+	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
+	//totalPoints[both] = z;
+
+	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	//if(find(std::begin(a), std::end(a), x) != std::end(a))
+
+
+	return point;
+}
+glm::vec3 evaluateBezierCurve2(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
+	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
+
+
+	/*stringstream iss;
+	iss << round(point.x);
+	string x = iss.str();
+	stringstream iss2;
+	iss2 << round(abs(point.z));
+	string y = iss2.str();
+	string both = x + " " + y;
+	glm::vec3 temp(point.x, point.z, 0);
+	*/
+	pair<float, float> temp(round(point.x), abs(round(point.z)));
 	cout << temp.first << " " << temp.second << " " << point.y << endl;
 	totalPoints[temp] = point.y;
-	
+
 	//cout << both << endl;
 	//float z = point.y;
 	//cout <<"x: " << x << " y: " << y << " z: " << z << endl;
@@ -404,14 +432,14 @@ float getParameterizedt(float pos) {
 void renderBezierSurface(vector<glm::vec3> p, int u_res) {
 	float u = 0.0;
 	while (u <= 1.0 - (1.0 / u_res) + 0.0001) {
-		renderBezierCurve(evaluateBezierCurve(p[0], p[1], p[2], p[3], u),
-			evaluateBezierCurve(p[4], p[5], p[6], p[7], u),
-			evaluateBezierCurve(p[8], p[9], p[10], p[11], u),
-			evaluateBezierCurve(p[12], p[13], p[14], p[15], u),
-			evaluateBezierCurve(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
-			evaluateBezierCurve(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
+		renderBezierCurve(evaluateBezierCurve2(p[0], p[1], p[2], p[3], u),
+			evaluateBezierCurve2(p[4], p[5], p[6], p[7], u),
+			evaluateBezierCurve2(p[8], p[9], p[10], p[11], u),
+			evaluateBezierCurve2(p[12], p[13], p[14], p[15], u),
+			evaluateBezierCurve2(p[0], p[1], p[2], p[3], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[4], p[5], p[6], p[7], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[8], p[9], p[10], p[11], u + (1.0 / u_res)),
+			evaluateBezierCurve2(p[12], p[13], p[14], p[15], u + (1.0 / u_res)), u_res);
 		u += (1.0 / u_res);
 	}
 }
@@ -865,8 +893,6 @@ void generateEnvironmentDL() {
 
 
 	glNewList(terrainDL, GL_COMPILE);
-	transMtx = glm::translate(glm::mat4(), glm::vec3(-50, 0, 50));
-	glMultMatrixf(&transMtx[0][0]);
 	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
 
@@ -880,7 +906,6 @@ void generateEnvironmentDL() {
 	for (unsigned int i = 0; i < controlPoints.size(); i++) {
 		renderBezierSurface(controlPoints[i], surfaceRes);
 	}
-	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 	glEndList();
 
 }
@@ -1261,6 +1286,7 @@ int main(int argc, char *argv[]) {
 			// Checks what the hero is doing, and moves/animates the hero accordingly
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+				currHero->pos.y = calcHeight(currHero->pos.x, currHero->pos.z);
 				currHero->yaw += turnDirection * turnSpeed;
 				recomputeOrientation();
 				checkBounds();
@@ -1271,6 +1297,7 @@ int main(int argc, char *argv[]) {
 			}
 			else if(walking){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+				currHero->pos.y = calcHeight(currHero->pos.x, currHero->pos.z);
 				recomputeOrientation();
 				checkBounds();
 
