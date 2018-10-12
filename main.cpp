@@ -663,8 +663,8 @@ void renderScene(void)  {
 	//glCallList(terrainDL);
 	drawCharacter();
 
-	drawVehicleParameterized();
-	drawVehicleNotParameterized();
+	//drawVehicleParameterized();
+	//drawVehicleNotParameterized();
 
 	// draws surface control points
 	glColor3ub(0, 255, 0);
@@ -836,10 +836,10 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	generateLookupTable();
-
 	loadSurfaceControlPoints(argv[1]);
 	loadCurveControlPoints(argv[2]);
+
+	generateLookupTable();
 	// GLFW sets up our OpenGL context so must be done first
 	GLFWwindow *window = setupGLFW();	// initialize all of the GLFW specific information releated to OpenGL and our window
 	setupOpenGL();										// initialize all of the OpenGL specific information
