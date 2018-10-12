@@ -1344,7 +1344,7 @@ int main(int argc, char *argv[]) {
 
 			// First person camera view matrix
 			glm::vec3 normalDir = glm::normalize(currHero->direction);
-			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.01f, currHero->pos.z);
+			glm::vec3 pos = glm::vec3(currHero->pos.x, currHero->pos.y + 2.0f, currHero->pos.z);
 			viewMtx = glm::lookAt(pos + 0.5f*normalDir, pos + normalDir, glm::vec3(  0,  1,  0 ) );
 			glMultMatrixf(&viewMtx[0][0]);
 			renderScene();
