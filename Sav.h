@@ -138,7 +138,10 @@ public:
 		moving = false;
 	}
 
-	void draw(bool animate) { 				  
+	void draw(bool animate) {
+		glm::mat4 transMat = glm::translate(glm::mat4(), pos);
+		glMultMatrixf(&transMat[0][0]);
+		
 		glPushMatrix();
 		glTranslatef(0, 15.0, 0);
 		glScalef(.25, .25, .25);
@@ -159,6 +162,9 @@ public:
 		drawHandleBars();
 
 		glPopMatrix();
+		
+		glMultMatrixf(&(glm::inverse(transMat))[0][0]);
+
 	}
 };
 
