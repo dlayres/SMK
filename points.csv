@@ -78,7 +78,7 @@
 2,3,-1
 2,2,-2
 4,,
-cactus,10,10
-cactus,20,20
-lamp,30,10
-lamp,50,50
+cactus,30,-30
+cactus,70,-70
+lamp,50,-20
+lamp,90,-50
