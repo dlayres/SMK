@@ -654,6 +654,17 @@ void drawGrid() {
 
 void drawCactus() {
 
+	GLfloat matColorC[4] = { 0.0, 0.05, 0.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorC);
+
+	GLfloat matColorC1[4] = { 0.2, 0.3, 0.2 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorC1);
+
+	GLfloat matColorC2[4] = { 0.04, 0.6, 0.04, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorC2);
+
+
+
 	glColor3f(0, 1.0, 0);
 
 	CSCI441::drawSolidCylinder(1.0, 1.0, 10.0, 20, 20);
@@ -810,6 +821,15 @@ void drawCharacter(){ // Draws character from upper half and two legs
 }
 
 void drawLamppost(){ // Draws a single lamppost
+	GLfloat matColorL[4] = { 0.0, 0.0, 0.0 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorL);
+
+	GLfloat matColorL1[4] = { 0.01, 0.01, 0.01 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorL1);
+
+	GLfloat matColorL2[4] = { 0.5, 0.5, 0.5, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorL2);
+
 	transMtx = glm::translate(glm::mat4(), glm::vec3(10, 0, 10)); // Moves lamppost to (10, 0, 10);
 	glMultMatrixf(&transMtx[0][0]);
 
@@ -999,38 +1019,46 @@ void renderScene(void)  {
 	// Draw all the heros
 	//glPushMatrix();
 	//glTranslatef(0, 10, 0);
-	GLfloat matColorD[4] = { 0.05375,0.05,0.06625 };
-	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
-
-	GLfloat matColorD1[4] = { 0.18275,0.17,	0.22525 };
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
-
-	GLfloat matColorD2[4] = { 0.332741, 0.328634, 0.346435 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
 	drawBezierCurve();
 
+	GLfloat matColorA[4] = { 0.19225, 0.19225, 0.19225 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorA);
+
+	GLfloat matColorA1[4] = { 0.40754, 0.40754, 0.40754 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorA1);
+
+	GLfloat matColorA2[4] = { 0.408273, 0.408273, 0.408273, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorA2);
+
 	drawVehicleParameterized(&alex);
+
+	GLfloat matColorJ[4] = { 0.05, 0.05, 0.05 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorJ);
+
+	GLfloat matColorJ1[4] = { 0.5, 0.5, 0.5 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorJ1);
+
+	GLfloat matColorJ2[4] = { 0.7, 0.7, 0.7, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorJ2);
+
 	drawVehicleNotParameterized(&josh);
+
+	GLfloat matColorS[4] = { 0.1745, 0.01175, 0.01175 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorS);
+
+	GLfloat matColorS1[4] = { 0.41424, 0.04136, 0.04136 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorS1);
+
+	GLfloat matColorS2[4] = { 0.427811, 0.326959, 0.326959, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorS2);
+
 	drawVehicleParameterized(&sav);
-	/*
-	alex.draw(false);
-	david.draw(false);
-	josh.draw(false);
-	sav.draw(false);
-	//glPopMatrix();make
-	*/
-	/*
-	GLfloat matColorD[4] = { 0.0215,0.1745 ,0.0215,1.0 };
-	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
 
-	GLfloat matColorD1[4] = { 0.07568,0.61424 ,0.07568,1.0 };
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+	drawBezierCurve();
 
-	GLfloat matColorD2[4] = { 0.633 ,0.727811,0.633,1.0 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
 
-	glMaterialf(GL_FRONT, GL_SHININESS, .001 * 128);
+
 
 
 
@@ -1039,7 +1067,15 @@ void renderScene(void)  {
 	drawCactus();
 	glPopMatrix();
 	// Draw all the heros
-	alex.draw(false);
+	GLfloat matColorD[4] = { 0.1, 0.18725, 0.1745 };
+	glMaterialfv(GL_FRONT, GL_AMBIENT, matColorD);
+
+	GLfloat matColorD1[4] = { 0.39, 0.74151, 0.69102 };
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, matColorD1);
+
+	GLfloat matColorD2[4] = { 0.297254, 0.30829, 0.306678, 1.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, matColorD2);
+
 	david.draw(false);
 
 
@@ -1048,7 +1084,7 @@ void renderScene(void)  {
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
 	}
-	*/
+	
 
 	//drawVehicleParameterized();
 	//drawVehicleNotParameterized();
