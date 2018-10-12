@@ -87,16 +87,18 @@ vector<float> animateVals;							// vector to store a few different animation cy
 vector<vector<glm::vec3> > controlPoints; 			// control points for Bezier surface
 vector<glm::vec3> curveControlPoints;				// control points for Bezier curve
 
-map<float, float> lookupTable;	
+map<float, float> lookupTable;
 
 int tableResolution = 100;								// for smooth vehicle movement
 
-int surfaceRes = 50;
+int surfaceRes = 100;
 float height = 0;
 
 glm::mat4 transMtx; 								// global variables used for transformations
 glm::mat4 rotateMtx;
 glm::mat4 scaleMtx;
+
+map<pair<float, float>, float> surfacePoints;
 
 GLuint cloudTexHandle;
 
@@ -127,6 +129,10 @@ David david(glm::vec3(5.0f, 0.3f, 5.0f));
 //
 ////////////////////////////////////////////////////////////////////////////////
 float getRand() { return rand() / (float)RAND_MAX; }
+
+float getDist(float x1, float y1, float x2, float y2){
+	return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+}
 
 // recomputeOrientation() //////////////////////////////////////////////////////
 //
@@ -246,7 +252,12 @@ bool loadCurveControlPoints(char* filename) {
 
 glm::vec3 evaluateBezierCurve( glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t ) {
 	glm::vec3 point = (float(pow((1.0 - t), 3)) * p0) + (3.0f * float(pow((1.0 - t), 2)) * t * p1) + (3.0f * (1.0f - t) * float(pow(t, 2)) * p2) + (float(pow(t, 3)) * p3);
+
+	pair<float, float> coords(point.x - 50, point.z + 50);
+	surfacePoints.emplace(coords, point.y);
+
 	return point;
+
 }
 
 // renderBezierCurve() //////////////////////////////////////////////////////////
@@ -310,8 +321,8 @@ float getParameterizedt(float pos) {
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
-// 
-//  
+//
+//
 //
 ////////////////////////////////////////////////////////////////////////////////
 void renderBezierSurface(vector<glm::vec3> p, int u_res) {
@@ -435,7 +446,7 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 	if( leftMouseButton == GLFW_PRESS ) {
 		currHero->cameraTheta -= (0.005 * (x - mousePos.x));
 		currHero->cameraPhi += (0.005 * (mousePos.y - y));
-		
+
 		if(currHero->cameraPhi > M_PI - 0.01){
 			currHero->cameraPhi = M_PI - 0.01;
 		}
@@ -443,7 +454,7 @@ static void cursor_callback( GLFWwindow *window, double x, double y ) {
 			currHero->cameraPhi = 0.01;
 		}
 		recomputeOrientation();     // update camera (x,y,z) based on (theta,phi)
-		
+
 		if(currCam == FREE_CAM) {
 			float mdx = x - mousePos.x;
 			float mdy = y - mousePos.y;
@@ -488,8 +499,8 @@ static void scroll_callback( GLFWwindow *window, double xoffset, double yoffset)
 	if(currHero->camDistance < 1){
 		currHero->camDistance = 1;
 	}
-	else if(currHero->camDistance > 15){
-		currHero->camDistance = 15;
+	else if(currHero->camDistance > 150){
+		currHero->camDistance = 150;
 
 	}
 	recomputeOrientation();
@@ -831,8 +842,8 @@ void renderScene(void)  {
 	// Draw all the heros
 	alex.draw(false);
 	david.draw(false);
-	
-	
+
+
 	glColor3ub(255, 255, 0);
 	for(unsigned int i = 0; i + 1 < controlPoints.size(); i+=3){
 		//renderBezierCurve(controlPoints[i], controlPoints[i + 1], controlPoints[i + 2], controlPoints[i + 3], 20);
@@ -1050,21 +1061,21 @@ int main(int argc, char *argv[]) {
 	while( !glfwWindowShouldClose(window) ) {	// check if the window was instructed to be closed
 		glDrawBuffer( GL_BACK );
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+
 		GLint framebufferWidth, framebufferHeight;
 		glfwGetFramebufferSize( window, &framebufferWidth, &framebufferHeight );
 		glViewport(0, 0, framebufferWidth, framebufferHeight);
-		
+
 		glm::mat4 projMtx, viewMtx;
-		
+
 		projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
 		glMatrixMode( GL_PROJECTION );
 		glLoadIdentity();
 		glMultMatrixf( &projMtx[0][0] );
-		
+
 		glMatrixMode( GL_MODELVIEW );
 		glLoadIdentity();
-		
+
 		if(currCam == ARCBALL_CAM) {
 			viewMtx = glm::lookAt( currHero->camPos, currHero->pos + glm::vec3(0, 1, 0), glm::vec3(  0,  1,  0 ) );
 		} else if (currCam == FREE_CAM) {
@@ -1082,18 +1093,18 @@ int main(int argc, char *argv[]) {
 		}
 		glMultMatrixf( &viewMtx[0][0] );
 		renderScene();
-		
+
 		if(viewOverlay) {
 			int overlayX = windowWidth - overlaySize;
 			int overlayY = windowHeight - overlaySize;
-			
+
 			glEnable(GL_SCISSOR_TEST);
 			glScissor(overlayX, overlayY, overlaySize, overlaySize);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			glDisable(GL_SCISSOR_TEST);
-			
+
 			glViewport(overlayX, overlayY, overlaySize, overlaySize);
-			
+
 			projMtx = glm::perspective( 45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f );
 			glMatrixMode( GL_PROJECTION );
 			glLoadIdentity();
@@ -1101,7 +1112,7 @@ int main(int argc, char *argv[]) {
 
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
-			
+
 			// First person camera view matrix
 			glm::vec3 normalDir = glm::normalize(currHero->direction);
 			glm::vec3 pos = glm::vec3(currHero->pos.x, 1.2f, currHero->pos.z);
@@ -1109,7 +1120,7 @@ int main(int argc, char *argv[]) {
 			glMultMatrixf(&viewMtx[0][0]);
 			renderScene();
 		}
-		
+
 		if(currCam == ARCBALL_CAM) {
 			// Checks what direction the camera is moving (if any) and recomputes camera orientation
 			if(cameraIn) {
@@ -1123,8 +1134,8 @@ int main(int argc, char *argv[]) {
 			else if(cameraOut){
 				currHero->camDistance += 0.2;
 				recomputeOrientation();
-				if(currHero->camDistance > 15){
-					currHero->camDistance = 15;
+				if(currHero->camDistance > 150){
+					currHero->camDistance = 150;
 					recomputeOrientation();
 				}
 			}
@@ -1144,6 +1155,20 @@ int main(int argc, char *argv[]) {
 			if(walking && turning){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
 				currHero->yaw += turnDirection * turnSpeed;
+
+				float shortestDist = 100000.0;
+				float newY = 0.0;
+				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
+
+				while(it != surfacePoints.end()){
+					if(getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z) < shortestDist){
+						shortestDist = getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z);
+						newY = it->second;
+					}
+					it++;
+				}
+				currHero->pos.y = newY + 2.5;
+
 				recomputeOrientation();
 				checkBounds();
 
@@ -1153,6 +1178,20 @@ int main(int argc, char *argv[]) {
 			}
 			else if(walking){
 				currHero->pos = currHero->pos + (direction * walkSpeed * currHero->direction);
+
+				float shortestDist = 100000.0;
+				float newY = 0.0;
+				map<pair<float, float>, float>::iterator it = surfacePoints.begin();
+
+				while(it != surfacePoints.end()){
+					if(getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z) < shortestDist){
+						shortestDist = getDist(it->first.first, it->first.second, currHero->pos.x, currHero->pos.z);
+						newY = it->second;
+					}
+					it++;
+				}
+				currHero->pos.y = newY;
+
 				recomputeOrientation();
 				checkBounds();
 
