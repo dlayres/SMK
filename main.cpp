@@ -80,7 +80,8 @@ vector<vector<glm::vec3> > controlPoints; 			// control points for Bezier surfac
 vector<glm::vec3> curveControlPoints;				// control points for Bezier curve
 
 map<float, float> lookupTable;	
-int tableResolution = 1000;							// for smooth vehicle movement
+
+int tableResolution = 100;								// for smooth vehicle movement
 
 int surfaceRes = 5;
 float height = 0;
@@ -261,16 +262,30 @@ void generateLookupTable() {
 		for (float j = 0; j < tableResolution; j += 1) {
 			glm::vec3 point = evaluateBezierCurve(curveControlPoints[i], curveControlPoints[i + 1], curveControlPoints[i + 2], curveControlPoints[i + 3], j / tableResolution);
 			distance += sqrt(pow((point.x - lastPoint.x), 2) + pow(point.y - lastPoint.y, 2) + pow(point.z - lastPoint.z, 2));
-			float t = i + j / tableResolution;
-			lookupTable[t] = distance;
+			float t = i / 3 + j / tableResolution;
+			lookupTable.insert(pair<float, float>(distance, t));
+			cout << distance << " " << lookupTable[distance] << endl;
 		}
 	}
 }
 
 float getParameterizedt(float pos) {
-	float bot = lookupTable.at(floor(pos * tableResolution) / tableResolution);
-	float top = lookupTable.at(ceil(pos * tableResolution) / tableResolution);
-	return (bot * (1 - (racerPos - floor(racerPos))) + top * (racerPos - floor(racerPos)));
+	float tAvg = pos / (((controlPoints.size() - 1) / 3));
+	cout << tAvg << endl;
+	map<float, float>::iterator low;
+	map<float, float>::iterator high;
+
+	cout << lookupTable.rbegin()->first << endl;
+	tAvg = tAvg * lookupTable.rbegin()->first;
+	cout << tAvg << endl;
+
+	float t = pos - floor(pos);
+	low = lookupTable.lower_bound(tAvg);
+	high = lookupTable.upper_bound(tAvg);
+
+	float value = low->second * (1 - t) + high->second * t;
+	cout << value << endl;
+	return low->second * (1 - t) + high->second * t;
 }
 // renderBezierSurface() //////////////////////////////////////////////////////////
 //
@@ -651,9 +666,6 @@ void drawLamppost(){ // Draws a single lamppost
 }
 
 void drawVehicleNotParameterized() {
-	if (racerPos > ceil((curveControlPoints.size()) / 3))
-		racerPos = 0;
-
 
 	//move to location on bezier curve
 	int p0 = floor(racerPos) * 3;
@@ -662,7 +674,7 @@ void drawVehicleNotParameterized() {
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-
+	CSCI441::drawSolidSphere(0.07, 20, 20);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -678,7 +690,7 @@ void drawVehicleParameterized() {
 	glm::mat4 transMtx = glm::translate(glm::mat4(), glm::vec3(loc.x, loc.y, loc.z));
 	glMultMatrixf(&transMtx[0][0]);
 	//draw vehicle
-
+	CSCI441::drawSolidSphere(0.1, 20, 20);
 
 	glMultMatrixf(&(glm::inverse(transMtx))[0][0]);
 }
@@ -696,7 +708,7 @@ void drawVehicleParameterized() {
 void generateEnvironmentDL() {
 	environmentDL = glGenLists(1);
 	glNewList(environmentDL, GL_COMPILE);
-		drawGrid();
+	drawGrid();
 	glEndList();
 
 
@@ -724,9 +736,10 @@ void generateEnvironmentDL() {
 void renderScene(void)  {
 	// update vehicle position
 	racerPos += .01;
+	if (racerPos > ceil((controlPoints.size()) / 3))
+		racerPos = 0;
 
 	glCallList(environmentDL);
-	//glCallList(terrainDL);
 	drawCharacter();
 	drawLamppost();
 	glPushMatrix();
@@ -734,6 +747,11 @@ void renderScene(void)  {
 	drawCactus();
 	glPopMatrix();
 	
+
+
+
+	//drawVehicleParameterized();
+	//drawVehicleNotParameterized();
 
 
 
@@ -913,6 +931,7 @@ int main(int argc, char *argv[]) {
 	loadSurfaceControlPoints(argv[1]);
 	loadCurveControlPoints(argv[2]);
 
+	generateLookupTable();
 	// GLFW sets up our OpenGL context so must be done first
 	GLFWwindow *window = setupGLFW();	// initialize all of the GLFW specific information releated to OpenGL and our window
 	setupOpenGL();										// initialize all of the OpenGL specific information
